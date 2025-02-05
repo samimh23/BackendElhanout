@@ -1,10 +1,22 @@
-import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
-import { BusinessOwner } from "./bussinesowner.schema";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { User } from './user.schema';
 
-@Schema()
-export class Merchant extends BusinessOwner {
+export class Merchant extends User {
+    @Prop({required: true})
+    patentimage:string
     @Prop()
-    merchantSpecificProp: string;
+    companyname: string;
+    @Prop()
+    companyaddress: string;m
+    @Prop()
+    companyphone: string;
+    @Prop()
+    companyemail: string;
+    @Prop()
+    companylogo: string;
+    @Prop()
+    companydescription: string;
+    
 }
 
-export const MerchantSchema = SchemaFactory.createForClass(Merchant);
+export const MerchantSchema= SchemaFactory.createForClass(Merchant);

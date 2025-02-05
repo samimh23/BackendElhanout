@@ -1,10 +1,8 @@
-import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
-import { User } from "./User.schema";
+import { SchemaFactory } from "@nestjs/mongoose";
+import { User } from "./user.schema";
 
-@Schema()
-export class Client extends User {
-    @Prop()
-    clientSpecificProp: string;
+export class Client extends User{
+
 }
 
-export const ClientSchema = SchemaFactory.createForClass(Client);
+export const ClientShcema = SchemaFactory.createForClass(Client);
