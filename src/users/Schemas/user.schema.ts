@@ -2,16 +2,13 @@ import { Schema,Prop, SchemaFactory } from "@nestjs/mongoose";
 import { Role } from "./Role.enum";
 
 
-@Schema()
+@Schema({discriminatorKey:'role',timestamps:true})
 export class User extends Document{
     
     @Prop()
-    firstname: string;
+    name: string;
 
-
-    @Prop()
-    age:number
-
+    
     @Prop({unique:true})
     email: string;
 
@@ -30,9 +27,8 @@ export class User extends Document{
     @Prop()
     profilepicture: string;
 
-    @Prop()
-    adresse:string
-    @Prop()
+    
+    @Prop({ required: true, enum: Role })
     role:Role
     
     
