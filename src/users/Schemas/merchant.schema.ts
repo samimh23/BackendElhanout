@@ -7,15 +7,9 @@ export class Merchant extends Bussinesowner {
     @Prop()
     merchantname: string;
     @Prop()
-    companyaddress: string;
-    @Prop()
-    companyphone: string;
-    @Prop()
-    companyemail: string;
-    @Prop()
-    companylogo: string;
-    @Prop()
-    companydescription: string;
+    merchantaddress: string;    
+    
+    
     
 }
 
