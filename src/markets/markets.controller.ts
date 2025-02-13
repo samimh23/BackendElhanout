@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Put, Delete, Body, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Param, Put, Delete, Body, HttpException, HttpStatus, Logger, Patch } from '@nestjs/common';
 import { MarketService } from './markets.service';
 import { Market, MarketType } from './schemas/market.schema';
 
@@ -28,15 +28,17 @@ export class MarketController {
     return this.marketService.getMarketById(id);
   }
 
-  @Put(':id')
-  async updateMarket(@Param('id') id: string, @Body() updateMarketDto: any): Promise<Market> {
-    return this.marketService.updateMarket(id, updateMarketDto);
-  }
-
   @Get('/type/:marketType')
   async getAllMarketsByType(@Param('marketType') marketType: MarketType): Promise<Market[]> {
     return this.marketService.getAllMarketsByType(marketType);
   }
+
+
+  @Patch(':id')
+  async updateMarket(@Param('id') id: string, @Body() updateMarketDto: any): Promise<Market> {
+    return this.marketService.updateMarket(id, updateMarketDto);
+  }
+
 
   @Delete(':id')
   async deleteMarket(@Param('id') id: string): Promise<void> {

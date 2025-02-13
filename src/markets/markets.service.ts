@@ -110,7 +110,6 @@ export class MarketService {
     try {
       this.logger.log(`Fetching market by ID: ${id}`);
   
-      // Use Promise.all to fetch from all collections in parallel
       const markets = await Promise.all([
         this.factoryMarketModel.findById(id).exec(),
         this.farmMarketModel.findById(id).exec(),
@@ -118,7 +117,6 @@ export class MarketService {
         this.normalMarketModel.findById(id).exec(),
       ]);
   
-      // Filter out any null results and return the first found market
       const foundMarket = markets.find((market) => market !== null);
   
       if (!foundMarket) {
@@ -136,28 +134,51 @@ export class MarketService {
   async updateMarket(id: string, updateMarketDto: Partial<CreateMarketDto>): Promise<Market> {
     try {
       this.logger.log(`Updating market ${id} with data: ${JSON.stringify(updateMarketDto)}`);
-      const updatedMarket = await this.marketModel.findByIdAndUpdate(id, updateMarketDto, { new: true }).exec();
-      if (!updatedMarket) {
-        this.logger.warn(`Market with ID ${id} not found for update`);
-        throw new NotFoundException(`Market with ID ${id} not found`);
+  
+      const marketModels = [
+        this.factoryMarketModel,
+        this.farmMarketModel,
+        this.groceryMarketModel,
+        this.normalMarketModel,
+      ];
+  
+      for (const model of marketModels) {
+        const updatedMarket = await model.findByIdAndUpdate(id, updateMarketDto, { new: true }).exec();
+        if (updatedMarket) {
+          this.logger.log(`Market ${id} updated successfully`);
+          return updatedMarket;
+        }
       }
-      this.logger.log(`Market ${id} updated successfully`);
-      return updatedMarket;
+  
+      this.logger.warn(`Market with ID ${id} not found`);
+      throw new NotFoundException(`Market with ID ${id} not found`);
     } catch (error) {
       this.logger.error(`Error updating market: ${error.message}`, error.stack);
       throw new InternalServerErrorException('Failed to update market');
     }
   }
-
+  
   async deleteMarket(id: string): Promise<void> {
     try {
       this.logger.log(`Deleting market with ID: ${id}`);
-      const deletedMarket = await this.marketModel.findByIdAndDelete(id).exec();
-      if (!deletedMarket) {
-        this.logger.warn(`Market with ID ${id} not found for deletion`);
-        throw new NotFoundException(`Market with ID ${id} not found`);
+  
+      const marketModels = [
+        this.factoryMarketModel,
+        this.farmMarketModel,
+        this.groceryMarketModel,
+        this.normalMarketModel,
+      ];
+  
+      for (const model of marketModels) {
+        const deletedMarket = await model.findByIdAndDelete(id).exec();
+        if (deletedMarket) {
+          this.logger.log(`Market ${id} deleted successfully`);
+          return;
+        }
       }
-      this.logger.log(`Market ${id} deleted successfully`);
+  
+      this.logger.warn(`Market with ID ${id} not found`);
+      throw new NotFoundException(`Market with ID ${id} not found`);
     } catch (error) {
       this.logger.error(`Error deleting market: ${error.message}`, error.stack);
       throw new InternalServerErrorException('Failed to delete market');
