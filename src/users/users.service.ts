@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, UnauthorizedException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -9,7 +9,10 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dtos/login.dto';
 import { RefreshToken } from './Schemas/refreshtoken.schema';
 import { v4 as uuidv4 } from 'uuid';
+import { randomInt } from 'crypto';
+import { nanoid } from 'nanoid';
 
+import { ResetToken } from './Schemas/reset-token.schema';
 type LoginResult = { accessToken: string , refreshToken: string };
 
 @Injectable()
@@ -19,6 +22,8 @@ export class UsersService {
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
         @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshToken>,
+        @InjectModel(ResetToken.name) private resetTokenModel: Model<ResetToken>,
+
         private jwtService: JwtService
     ) {}
 
@@ -109,5 +114,90 @@ export class UsersService {
             { $set: { token: hashedRefreshToken, expiryDate } },
             { upsert: true }
         );
+    }
+
+    async ForgetPassword(email:string):Promise<{ resetToken: string }>{
+        const user = await this.userModel.findOne({email})
+        if(!user){
+            throw new NotFoundException('User not found')
+        }
+        try{
+            const resetCode =randomInt(100000,999999).toString()
+            const resetToken =nanoid()
+            await this.resetTokenModel.deleteMany({ userId: user._id });
+            const reset = new this.resetTokenModel({
+                userId: user._id,
+                token: resetCode,
+                resetToken,
+                expiryDate: new Date(Date.now() + 1000 * 60 * 10),
+            });
+            //await this.mailService.sendResetEmail(user.email, resetCode);
+
+            // Return the reset token to be used in subsequent requests
+            return { resetToken };
+
+        }
+        catch(e){
+            throw new BadRequestException('Error while generating reset token')
+        }
+
+        
+    }
+    async verifyResetCode(resetToken: string, code: string): Promise<{ verifiedToken: string }> {
+        const resetRecord = await this.resetTokenModel.findOne({
+            resetToken,
+            token: code,
+            expiryDate: { $gt: new Date() }
+        });
+
+        if (!resetRecord) {
+            throw new UnauthorizedException('Invalid or expired reset code');
+        }
+
+        // Generate a verified token
+        const verifiedToken = nanoid();
+        
+        // Update reset record with verified token
+        resetRecord.verifiedToken = verifiedToken;
+        resetRecord.isVerified = true;
+        await resetRecord.save();
+
+        return { verifiedToken };
+    }
+    async resetPassword(verifiedToken: string, newPassword: string): Promise<void> {
+        const resetRecord = await this.resetTokenModel.findOne({
+            verifiedToken,
+            isVerified: true,
+            expiryDate: { $gt: new Date() }
+        });
+    
+        if (!resetRecord) {
+            throw new UnauthorizedException('Invalid or expired reset token');
+        }
+    
+        try {
+            // Hash new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+            // Update user's password
+            await this.userModel.findByIdAndUpdate(resetRecord.userId, {
+                password: hashedPassword,
+                isFirstLogin: false
+            });
+    
+            // Delete the used reset token
+            await this.resetTokenModel.deleteOne({ _id: resetRecord._id });
+    
+            // Invalidate all refresh tokens for this user
+            await this.refreshTokenModel.deleteMany({ userId: resetRecord.userId });
+    
+            // Send confirmation email
+            const user = await this.userModel.findById(resetRecord.userId);
+            if (user) {
+               // await this.mailService.sendPasswordResetConfirmation(user.email);
+            }
+        } catch (error) {
+            throw new InternalServerErrorException('Failed to reset password');
+        }
     }
 }

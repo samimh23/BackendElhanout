@@ -7,6 +7,7 @@ import { APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { User, UserSchema } from './Schemas/user.schema';
 import { RefreshToken, RefreshTokenSchema } from './Schemas/refreshtoken.schema';
+import { ResetToken, ResetTokenSchema } from './Schemas/reset-token.schema';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { RefreshToken, RefreshTokenSchema } from './Schemas/refreshtoken.schema'
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: RefreshToken.name, schema: RefreshTokenSchema },
+      { name: ResetToken.name, schema: ResetTokenSchema },
     ]),
   ],
   providers: [
