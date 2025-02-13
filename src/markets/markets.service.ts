@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Market, MarketDocument, MarketType } from './schemas/market.schema';
 import { FactoryMarket } from './schemas/factory.schema';
-import { FarmerMarket } from './schemas/farm.schema';
+import { FarmMarket } from './schemas/farm.schema';
 import { GroceryMarket } from './schemas/grocery.schema';
 import { NormalMarket } from './schemas/normal-market.schema';
 import { CreateMarketDto } from './dto/create-market.dto';
@@ -15,7 +15,7 @@ export class MarketService {
   constructor(
     @InjectModel(Market.name) private readonly marketModel: Model<MarketDocument>,
     @InjectModel(FactoryMarket.name) private readonly factoryMarketModel: Model<FactoryMarket>,
-    @InjectModel(FarmerMarket.name) private readonly farmerMarketModel: Model<FarmerMarket>,
+    @InjectModel(FarmMarket.name) private readonly farmMarketModel: Model<FarmMarket>,
     @InjectModel(GroceryMarket.name) private readonly groceryMarketModel: Model<GroceryMarket>,
     @InjectModel(NormalMarket.name) private readonly normalMarketModel: Model<NormalMarket>,
   ) {}
@@ -35,8 +35,8 @@ export class MarketService {
         case MarketType.FACTORY:
           newMarket = new this.factoryMarketModel({ ...marketData, marketType });
           break;
-        case MarketType.FARMER:
-          newMarket = new this.farmerMarketModel({ ...marketData, marketType });
+        case MarketType.FARM:
+          newMarket = new this.farmMarketModel({ ...marketData, marketType });
           break;
         case MarketType.GROCERY:
           newMarket = new this.groceryMarketModel({ ...marketData, marketType });
@@ -61,7 +61,7 @@ export class MarketService {
     try {
       this.logger.log('Fetching all markets...');
       const factoryMarkets = await this.factoryMarketModel.find().exec();
-      const farmerMarkets = await this.farmerMarketModel.find().exec();
+      const farmerMarkets = await this.farmMarketModel.find().exec();
       const groceryMarkets = await this.groceryMarketModel.find().exec();
       const normalMarkets = await this.normalMarketModel.find().exec();
       const allMarkets = [...factoryMarkets, ...farmerMarkets, ...groceryMarkets, ...normalMarkets];
@@ -84,8 +84,8 @@ export class MarketService {
         case MarketType.FACTORY:
           markets = await this.factoryMarketModel.find().exec();
           break;
-        case MarketType.FARMER:
-          markets = await this.farmerMarketModel.find().exec();
+        case MarketType.FARM:
+          markets = await this.farmMarketModel.find().exec();
           break;
         case MarketType.GROCERY:
           markets = await this.groceryMarketModel.find().exec();
@@ -113,7 +113,7 @@ export class MarketService {
       // Use Promise.all to fetch from all collections in parallel
       const markets = await Promise.all([
         this.factoryMarketModel.findById(id).exec(),
-        this.farmerMarketModel.findById(id).exec(),
+        this.farmMarketModel.findById(id).exec(),
         this.groceryMarketModel.findById(id).exec(),
         this.normalMarketModel.findById(id).exec(),
       ]);
