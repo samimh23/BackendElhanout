@@ -1,6 +1,8 @@
-
-export enum Role{
-    Client = 'Client',
-    Merchant= 'Merchant',
-    Wholesaler= 'Wholesaler',
+export enum Role {
+    CLIENT = 'Client',
+    MERCHANT = 'Merchant',
+    WHOLESALER = 'Wholesaler',
+    FactoryOwner = 'FactoryOwner',
+    Farmer = 'Farmer',
+    Crew='Crew'
 }
