@@ -13,6 +13,7 @@ import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 
 import { ResetToken } from './Schemas/reset-token.schema';
+import { MailService } from 'src/config/services/mail.service';
 type LoginResult = { accessToken: string , refreshToken: string };
 
 @Injectable()
@@ -23,7 +24,7 @@ export class UsersService {
         @InjectModel(User.name) private userModel: Model<User>,
         @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshToken>,
         @InjectModel(ResetToken.name) private resetTokenModel: Model<ResetToken>,
-
+        private readonly mailService: MailService,
         private jwtService: JwtService
     ) {}
 
@@ -79,7 +80,7 @@ export class UsersService {
         }
 
         const tokens = await this.generateUserToken(userExist._id.toString());
-
+        await this.mailService.sendWelcomeEmail(email, "sami", false);
         return { accessToken: tokens.accessToken,   refreshToken: tokens.refreshToken };
     }
 
