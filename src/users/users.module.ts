@@ -8,6 +8,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { User, UserSchema } from './Schemas/user.schema';
 import { RefreshToken, RefreshTokenSchema } from './Schemas/refreshtoken.schema';
 import { ResetToken, ResetTokenSchema } from './Schemas/reset-token.schema';
+import { MailModule } from 'src/config/services/mail.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ResetToken, ResetTokenSchema } from './Schemas/reset-token.schema';
       { name: RefreshToken.name, schema: RefreshTokenSchema },
       { name: ResetToken.name, schema: ResetTokenSchema },
     ]),
+    MailModule,
   ],
   providers: [
     UsersService,
