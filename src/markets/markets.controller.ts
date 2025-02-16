@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Param, Put, Delete, Body, HttpException, HttpStatus, Logger, Patch } from '@nestjs/common';
 import { MarketService } from './markets.service';
 import { Market, MarketType } from './schemas/market.schema';
+import { CreateMarketDto } from './dto/create-market.dto';
 
 @Controller('markets')
 export class MarketController {
@@ -9,7 +10,7 @@ export class MarketController {
   constructor(private readonly marketService: MarketService) {}
 
   @Post()
-  async createMarket(@Body() createMarketDto: any): Promise<Market> {
+  async createMarket(@Body() createMarketDto: CreateMarketDto): Promise<Market> {
     try {
       return await this.marketService.createMarket(createMarketDto);
     } catch (error) {
@@ -23,9 +24,14 @@ export class MarketController {
     return this.marketService.getAllMarkets();
   }
 
-  @Get(':id')
-  async getMarketById(@Param('id') id: string): Promise<Market> {
-    return this.marketService.getMarketById(id);
+  @Get(':id/:marketType')
+  async getMarketById(@Param('id') id: string, @Param('marketType') marketType: MarketType): Promise<Market> {
+    try {
+      return await this.marketService.getMarketById(id, marketType);
+    } catch (error) {
+      this.logger.error(`Error fetching market: ${error.message}`, error.stack);
+      throw new HttpException(error.message, HttpStatus.NOT_FOUND);
+    }
   }
 
   @Get('/type/:marketType')
@@ -33,15 +39,23 @@ export class MarketController {
     return this.marketService.getAllMarketsByType(marketType);
   }
 
-
-  @Patch(':id')
-  async updateMarket(@Param('id') id: string, @Body() updateMarketDto: any): Promise<Market> {
-    return this.marketService.updateMarket(id, updateMarketDto);
+  @Patch(':id/:marketType')
+  async updateMarket(@Param('id') id: string, @Param('marketType') marketType: MarketType, @Body() updateMarketDto: any): Promise<Market> {
+    try {
+      return await this.marketService.updateMarket(id, marketType, updateMarketDto);
+    } catch (error) {
+      this.logger.error(`Error updating market: ${error.message}`, error.stack);
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
   }
 
-
-  @Delete(':id')
-  async deleteMarket(@Param('id') id: string): Promise<void> {
-    return this.marketService.deleteMarket(id);
+  @Delete(':id/:marketType')
+  async deleteMarket(@Param('id') id: string, @Param('marketType') marketType: MarketType): Promise<void> {
+    try {
+      return await this.marketService.deleteMarket(id, marketType);
+    } catch (error) {
+      this.logger.error(`Error deleting market: ${error.message}`, error.stack);
+      throw new HttpException(error.message, HttpStatus.NOT_FOUND);
+    }
   }
 }

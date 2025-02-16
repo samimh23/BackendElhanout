@@ -106,79 +106,106 @@ export class MarketService {
   }
   
 
-  async getMarketById(id: string): Promise<Market> {
+  async getMarketById(id: string, marketType: MarketType): Promise<Market> {
     try {
-      this.logger.log(`Fetching market by ID: ${id}`);
+      this.logger.log(`Fetching market by ID: ${id} and type: ${marketType}`);
   
-      const markets = await Promise.all([
-        this.factoryMarketModel.findById(id).exec(),
-        this.farmMarketModel.findById(id).exec(),
-        this.groceryMarketModel.findById(id).exec(),
-        this.normalMarketModel.findById(id).exec(),
-      ]);
+      let market;
   
-      const foundMarket = markets.find((market) => market !== null);
-  
-      if (!foundMarket) {
-        this.logger.warn(`Market with ID ${id} not found in any market type`);
-        throw new NotFoundException(`Market with ID ${id} not found`);
+      switch (marketType) {
+        case MarketType.FACTORY:
+          market = await this.factoryMarketModel.findById(id).exec();
+          break;
+        case MarketType.FARM:
+          market = await this.farmMarketModel.findById(id).exec();
+          break;
+        case MarketType.GROCERY:
+          market = await this.groceryMarketModel.findById(id).exec();
+          break;
+        case MarketType.NORMAL:
+          market = await this.normalMarketModel.findById(id).exec();
+          break;
+        default:
+          throw new BadRequestException(`Invalid market type. Allowed: ${Object.values(MarketType).join(', ')}`);
       }
   
-      return foundMarket;
+      if (!market) {
+        this.logger.warn(`Market with ID ${id} not found in type ${marketType}`);
+        throw new NotFoundException(`Market with ID ${id} not found in type ${marketType}`);
+      }
+  
+      return market;
     } catch (error) {
       this.logger.error(`Error fetching market by ID: ${error.message}`, error.stack);
       throw new InternalServerErrorException('Failed to fetch market');
     }
   }
   
-  async updateMarket(id: string, updateMarketDto: Partial<CreateMarketDto>): Promise<Market> {
+  async updateMarket(id: string, marketType: MarketType, updateMarketDto: Partial<CreateMarketDto>): Promise<Market> {
     try {
-      this.logger.log(`Updating market ${id} with data: ${JSON.stringify(updateMarketDto)}`);
+      this.logger.log(`Updating market ${id} of type ${marketType} with data: ${JSON.stringify(updateMarketDto)}`);
   
-      const marketModels = [
-        this.factoryMarketModel,
-        this.farmMarketModel,
-        this.groceryMarketModel,
-        this.normalMarketModel,
-      ];
+      let updatedMarket;
   
-      for (const model of marketModels) {
-        const updatedMarket = await model.findByIdAndUpdate(id, updateMarketDto, { new: true }).exec();
-        if (updatedMarket) {
-          this.logger.log(`Market ${id} updated successfully`);
-          return updatedMarket;
-        }
+      switch (marketType) {
+        case MarketType.FACTORY:
+          updatedMarket = await this.factoryMarketModel.findByIdAndUpdate(id, updateMarketDto, { new: true }).exec();
+          break;
+        case MarketType.FARM:
+          updatedMarket = await this.farmMarketModel.findByIdAndUpdate(id, updateMarketDto, { new: true }).exec();
+          break;
+        case MarketType.GROCERY:
+          updatedMarket = await this.groceryMarketModel.findByIdAndUpdate(id, updateMarketDto, { new: true }).exec();
+          break;
+        case MarketType.NORMAL:
+          updatedMarket = await this.normalMarketModel.findByIdAndUpdate(id, updateMarketDto, { new: true }).exec();
+          break;
+        default:
+          throw new BadRequestException(`Invalid market type. Allowed: ${Object.values(MarketType).join(', ')}`);
       }
   
-      this.logger.warn(`Market with ID ${id} not found`);
-      throw new NotFoundException(`Market with ID ${id} not found`);
+      if (!updatedMarket) {
+        this.logger.warn(`Market with ID ${id} not found in type ${marketType}`);
+        throw new NotFoundException(`Market with ID ${id} not found in type ${marketType}`);
+      }
+  
+      this.logger.log(`Market ${id} updated successfully`);
+      return updatedMarket;
     } catch (error) {
       this.logger.error(`Error updating market: ${error.message}`, error.stack);
       throw new InternalServerErrorException('Failed to update market');
     }
   }
   
-  async deleteMarket(id: string): Promise<void> {
+  async deleteMarket(id: string, marketType: MarketType): Promise<void> {
     try {
-      this.logger.log(`Deleting market with ID: ${id}`);
+      this.logger.log(`Deleting market with ID: ${id} and type: ${marketType}`);
   
-      const marketModels = [
-        this.factoryMarketModel,
-        this.farmMarketModel,
-        this.groceryMarketModel,
-        this.normalMarketModel,
-      ];
+      let deletedMarket;
   
-      for (const model of marketModels) {
-        const deletedMarket = await model.findByIdAndDelete(id).exec();
-        if (deletedMarket) {
-          this.logger.log(`Market ${id} deleted successfully`);
-          return;
-        }
+      switch (marketType) {
+        case MarketType.FACTORY:
+          deletedMarket = await this.factoryMarketModel.findByIdAndDelete(id).exec();
+          break;
+        case MarketType.FARM:
+          deletedMarket = await this.farmMarketModel.findByIdAndDelete(id).exec();
+          break;
+        case MarketType.GROCERY:
+          deletedMarket = await this.groceryMarketModel.findByIdAndDelete(id).exec();
+          break;
+        case MarketType.NORMAL:
+          deletedMarket = await this.normalMarketModel.findByIdAndDelete(id).exec();
+          break;
+        default:
+          throw new BadRequestException(`Invalid market type. Allowed: ${Object.values(MarketType).join(', ')}`);
       }
   
-      this.logger.warn(`Market with ID ${id} not found`);
-      throw new NotFoundException(`Market with ID ${id} not found`);
+      if (!deletedMarket) {
+        this.logger.warn(`Market with ID ${id} not found in type ${marketType}`);
+        throw new NotFoundException(`Market with ID ${id} not found in type ${marketType}`);
+      }
+  
+      this.logger.log(`Market ${id} deleted successfully`);
     } catch (error) {
       this.logger.error(`Error deleting market: ${error.message}`, error.stack);
       throw new InternalServerErrorException('Failed to delete market');
