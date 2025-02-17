@@ -10,6 +10,7 @@ import { ResetToken, ResetTokenSchema } from './Schemas/reset-token.schema';
 import { MailModule } from 'src/config/services/mail.module';
 import { APP_PIPE } from '@nestjs/core';
 import { RolesGuard } from 'src/config/guards/role.guard';
+import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { RolesGuard } from 'src/config/guards/role.guard';
     MailModule,
   ],
   providers: [
+    GoogleStrategy,
     UsersService,
     {
       provide: APP_PIPE,

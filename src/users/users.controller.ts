@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Logger, Param, Query, Get, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Body, Logger, Param, Query, Get, UseGuards, NotFoundException, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dtos/CreateUserDto.dto';
 import { User } from './Schemas/User.schema';
@@ -9,6 +9,7 @@ import { RolesGuard } from 'src/config/guards/role.guard';
 import { Roles } from 'src/config/decorators/roles.decorators';
 import { ChangePasswordDto } from './dtos/changepassword.dto';
 import { AuthenticatedUser, CurrentUser } from 'src/config/decorators/current-user.decorators';
+import { GoogleOAuthGuard } from 'src/config/guards/google-oauth.guard';
 
 
 @Controller('users')
@@ -63,4 +64,13 @@ export class UsersController {
             throw error;
         }
     }
+    @Get()
+    @UseGuards(GoogleOAuthGuard)
+    async googleAuth(@Req() req) {}
+
+    @Get('google-redirect')
+    @UseGuards(GoogleOAuthGuard)
+    googleAuthRedirect(@Req() req) {
+    return this.usersService.googleLogin(req);
+  }
 }
