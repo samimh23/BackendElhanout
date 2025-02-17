@@ -1,23 +1,23 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-export enum MarketType {
+export enum MarketsType {
     FACTORY = 'factory',
     FARM = 'farm',
     GROCERY = 'grocery',
     NORMAL = 'normal',
   }
   
-export type MarketDocument = Market & Document;
+export type MarketsDocument = Markets & Document;
 @Schema({ discriminatorKey: 'marketType' }) 
-export class Market {
-  @Prop() 
-  Owner: string;
+export class Markets {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true }) 
+  owner: Types.ObjectId;
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
   products: Types.ObjectId[];
 
-  @Prop({ type: String, required: true, enum: MarketType })
-  marketType: MarketType;
+  @Prop({ type: String, required: true, enum: MarketsType })
+  marketType: MarketsType;
 }
 
-export const MarketSchema = SchemaFactory.createForClass(Market);
+export const MarketSchema = SchemaFactory.createForClass(Markets);
 

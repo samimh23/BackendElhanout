@@ -1,8 +1,8 @@
 import { SchemaFactory,Schema, Prop } from "@nestjs/mongoose";
-import { Market } from "./market.schema";
+import { Markets } from "../../Common/Schema/market.schema";
 
 @Schema()
-export class NormalMarket extends Market {
+export class NormalMarket extends Markets {
       @Prop({ required: true })
       marketName: string;
       @Prop({ required: true })
