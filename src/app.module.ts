@@ -7,6 +7,10 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import config from './config/config';
 import { MailService } from './config/services/mail.service';
+import { FactoryModule } from './factory/factory.module';
+import { WholesalerMarketModule } from './wholesaler_market/wholesaler_market.module';
+import { FarmModule } from './farm/farm.module';
+import { NormalMarketModule } from './market/market.module';
 
 @Module({
   imports: [
@@ -40,6 +44,10 @@ import { MailService } from './config/services/mail.service';
       inject: [ConfigService],
     }),
     UsersModule,
+    FactoryModule,
+    WholesalerMarketModule,
+    FarmModule,
+    NormalMarketModule,
   ],
   controllers: [AppController],
   providers: [AppService,MailService],
