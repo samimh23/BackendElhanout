@@ -14,6 +14,8 @@ import { nanoid } from 'nanoid';
 
 import { ResetToken } from './Schemas/reset-token.schema';
 import { MailService } from 'src/config/services/mail.service';
+import { brotliDecompressSync } from 'zlib';
+import { ChangePasswordDto } from './dtos/changepassword.dto';
 type LoginResult = { accessToken: string , refreshToken: string };
 
 @Injectable()
@@ -65,6 +67,7 @@ export class UsersService {
 
     async findbyrole(role: Role): Promise<User[]> {
         return this.userModel.find({ role }).exec();
+        ///return status
     }
 
     async login(logindto: LoginDto): Promise<LoginResult> {
@@ -80,7 +83,7 @@ export class UsersService {
         }
 
         const tokens = await this.generateUserToken(userExist._id.toString());
-        await this.mailService.sendWelcomeEmail(email, "sami", false);
+       // await this.mailService.sendWelcomeEmail(email, "sami", false);
         return { accessToken: tokens.accessToken,   refreshToken: tokens.refreshToken };
     }
 
@@ -199,6 +202,57 @@ export class UsersService {
             }
         } catch (error) {
             throw new InternalServerErrorException('Failed to reset password');
+        }
+    }
+
+    async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
+        this.logger.debug(`Attempting to change password for user: ${userId}`);
+
+        if (!userId) {
+            this.logger.error('No user ID provided to changePassword');
+            throw new NotFoundException('User ID is required');
+        }
+
+        // Find the user - use lean() for better performance
+        const user = await this.userModel.findById(userId).lean();
+
+        if (!user) {
+            this.logger.error(`User with ID ${userId} not found in database`);
+            throw new NotFoundException('User not found');
+        }
+
+        // Verify current password
+        const isPasswordValid = await bcrypt.compare(
+            changePasswordDto.currentPassword,
+            user.password
+        );
+
+        if (!isPasswordValid) {
+            this.logger.error(`Invalid current password for user ${userId}`);
+            throw new UnauthorizedException('Current password is incorrect');
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
+
+        try {
+            // Update the password
+            await this.userModel.findByIdAndUpdate(
+                userId,
+                {
+                    $set: {
+                        password: hashedPassword,
+                        updatedAt: new Date()
+                    }
+                },
+                { new: true }
+            );
+
+            this.logger.log(`Successfully changed password for user ${userId}`);
+            return { message: 'Password changed successfully' };
+        } catch (error) {
+            this.logger.error(`Failed to update password for user ${userId}: ${error.message}`);
+            throw new InternalServerErrorException('Failed to update password');
         }
     }
 }
