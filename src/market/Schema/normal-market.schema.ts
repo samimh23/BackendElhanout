@@ -16,5 +16,4 @@ export class NormalMarket extends Markets {
       @Prop()
       marketImage: string;
 }
-
 export const NormalMarketSchema = SchemaFactory.createForClass(NormalMarket);

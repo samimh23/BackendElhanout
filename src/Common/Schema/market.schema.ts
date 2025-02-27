@@ -6,9 +6,9 @@ export enum MarketsType {
     GROCERY = 'grocery',
     NORMAL = 'normal',
   }
-  
+
 export type MarketsDocument = Markets & Document;
-@Schema({ discriminatorKey: 'marketType' }) 
+@Schema({ discriminatorKey: 'marketType'}) 
 export class Markets {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true }) 
   owner: Types.ObjectId;

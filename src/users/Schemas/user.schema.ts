@@ -1,6 +1,6 @@
 import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
 import { Role } from "./Role.enum";
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 @Schema({ discriminatorKey: 'role', timestamps: true })
 export class User extends Document {
@@ -27,6 +27,8 @@ export class User extends Document {
 
     @Prop({ required: true, enum: Role })
     role: Role;
+    @Prop({ type: [{ type: Types.ObjectId, ref: 'Markets' }], default: []} )
+    markets: Types.ObjectId[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
