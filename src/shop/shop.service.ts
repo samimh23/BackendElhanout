@@ -5,7 +5,7 @@ import { Shop } from './entities/shop.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Product } from 'src/product/entities/product.schema';
-import { User } from 'src/user/entities/user.entity';
+import { User } from 'src/users/Schemas/User.schema';
 
 @Injectable()
 export class ShopService {

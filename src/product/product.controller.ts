@@ -1,13 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, BadRequestException, UseGuards } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { Roles } from 'src/config/decorators/roles.decorators';
+import { Wholesaler } from 'src/users/Schemas/wholesaler.schema';
+import { RolesGuard } from 'src/config/guards/role.guard';
+import { Role } from 'src/users/Schemas/Role.enum';
+import { AuthenticationGuard } from 'src/config/guards/authentication.guard';
 
 @Controller('product')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
+  @UseGuards(RolesGuard,AuthenticationGuard) 
+  @Roles(Role.WHOLESALER)
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
   }
