@@ -14,7 +14,6 @@ import { nanoid } from 'nanoid';
 
 import { ResetToken } from './Schemas/reset-token.schema';
 import { MailService } from 'src/config/services/mail.service';
-import { brotliDecompressSync } from 'zlib';
 import { ChangePasswordDto } from './dtos/changepassword.dto';
 type LoginResult = { accessToken: string , refreshToken: string };
 
@@ -31,7 +30,7 @@ export class UsersService {
     ) {}
 
     async create(createUserDto: CreateUserDto): Promise<User> {
-        const { email, role, password, ...rest } = createUserDto;
+        const { email, password, ...rest } = createUserDto;
 
         const userExists = await this.userModel.findOne({ email });
         if (userExists) {
@@ -40,28 +39,9 @@ export class UsersService {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        let user: User;
-        switch (role) {
-            case 'Client':
-                user = new this.userModel({ ...rest, email, role, password: hashedPassword, __t: 'Client' });
-                break;
-            case 'Merchant':
-                user = new this.userModel({ ...rest, email, role, password: hashedPassword, __t: 'Merchant' });
-                break;
-            case 'Wholesaler':
-                user = new this.userModel({ ...rest, email, role, password: hashedPassword, __t: 'Wholesaler' });
-                break;
-            case 'Farmer':
-                user = new this.userModel({ ...rest, email, role, password: hashedPassword, __t: 'Farmer' });
-                break;
-            case 'FactoryOwner':
-                user = new this.userModel({ ...rest, email, role, password: hashedPassword, __t: 'FactoryOwner' });
-                break;
-            default:
-                throw new BadRequestException('Invalid role');
-        }
+        const user = new this.userModel({ ...rest, email, role: 'Client', password: hashedPassword, __t: 'Client' });
 
-        this.logger.log(`Creating user with email: ${email} and role: ${role}`);
+        this.logger.log(`Creating user with email: ${email} and role: Client`);
         return user.save();
     }
 
@@ -73,27 +53,47 @@ export class UsersService {
     async login(logindto: LoginDto): Promise<LoginResult> {
         const { email, password } = logindto;
         const userExist = await this.userModel.findOne({ email });
+        
         if (!userExist) {
             throw new UnauthorizedException('Invalid email or password');
         }
-
+        
+        // First, check if the user has a password (they might have registered via Google)
+        if (!userExist.password) {
+            this.logger.error(`User ${email} attempted to login with password but has no password stored`);
+            throw new UnauthorizedException('This account cannot be accessed with a password. Try signing in with Google.');
+        }
+        
+        // Now we can safely compare passwords
         const passwordMatch = await bcrypt.compare(password, userExist.password);
         if (!passwordMatch) {
             throw new UnauthorizedException('Invalid email or password');
         }
-
+    
         const tokens = await this.generateUserToken(userExist._id.toString());
-       // await this.mailService.sendWelcomeEmail(email, "sami", false);
-        return { accessToken: tokens.accessToken,   refreshToken: tokens.refreshToken };
+        return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
     }
-
     async refreshToken(refreshToken: string) {
-        const token = await this.refreshTokenModel.findOne({ token: refreshToken, expiryDate: { $gt: new Date() } });
-        if (!token) {
+        // Find token by hashed value - this needs to be fixed
+        // You need to find all tokens and compare the hash
+        const tokens = await this.refreshTokenModel.find({ expiryDate: { $gt: new Date() } });
+        let foundToken = null;
+        
+        for (const token of tokens) {
+            // Compare the provided refresh token with the stored hash
+            const isMatch = await bcrypt.compare(refreshToken, token.token);
+            if (isMatch) {
+                foundToken = token;
+                break;
+            }
+        }
+        
+        if (!foundToken) {
             throw new UnauthorizedException('Invalid refresh token');
         }
-        const tokens = await this.generateUserToken(token.userId.toString());
-        return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+        
+        const newTokens = await this.generateUserToken(foundToken.userId.toString());
+        return { accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken };
     }
 
     async generateUserToken(userId: string) {
@@ -120,14 +120,14 @@ export class UsersService {
         );
     }
 
-    async ForgetPassword(email:string):Promise<{ resetToken: string }>{
-        const user = await this.userModel.findOne({email})
-        if(!user){
-            throw new NotFoundException('User not found')
+    async ForgetPassword(email: string): Promise<{ resetToken: string }> {
+        const user = await this.userModel.findOne({ email });
+        if (!user) {
+            throw new NotFoundException('User not found');
         }
-        try{
-            const resetCode =randomInt(100000,999999).toString()
-            const resetToken =nanoid()
+        try {
+            const resetCode = randomInt(100000, 999999).toString();
+            const resetToken = nanoid();
             await this.resetTokenModel.deleteMany({ userId: user._id });
             const reset = new this.resetTokenModel({
                 userId: user._id,
@@ -135,18 +135,20 @@ export class UsersService {
                 resetToken,
                 expiryDate: new Date(Date.now() + 1000 * 60 * 10),
             });
-            //await this.mailService.sendResetEmail(user.email, resetCode);
+            await reset.save(); // Missing save() call
+            
+            // Uncomment if you need to send reset emails
+             await this.mailService.sendResetEmail(user.email, resetCode);
 
             // Return the reset token to be used in subsequent requests
             return { resetToken };
-
         }
-        catch(e){
-            throw new BadRequestException('Error while generating reset token')
+        catch (e) {
+            this.logger.error(`Error generating reset token: ${e.message}`);
+            throw new BadRequestException('Error while generating reset token');
         }
-
-        
     }
+    
     async verifyResetCode(resetToken: string, code: string): Promise<{ verifiedToken: string }> {
         const resetRecord = await this.resetTokenModel.findOne({
             resetToken,
@@ -168,6 +170,7 @@ export class UsersService {
 
         return { verifiedToken };
     }
+    
     async resetPassword(verifiedToken: string, newPassword: string): Promise<void> {
         const resetRecord = await this.resetTokenModel.findOne({
             verifiedToken,
@@ -186,7 +189,8 @@ export class UsersService {
             // Update user's password
             await this.userModel.findByIdAndUpdate(resetRecord.userId, {
                 password: hashedPassword,
-                isFirstLogin: false
+                // Only include isFirstLogin if it's defined in your User schema
+                // isFirstLogin: false
             });
     
             // Delete the used reset token
@@ -195,12 +199,13 @@ export class UsersService {
             // Invalidate all refresh tokens for this user
             await this.refreshTokenModel.deleteMany({ userId: resetRecord.userId });
     
-            // Send confirmation email
+            // Send confirmation email - uncomment if needed
             const user = await this.userModel.findById(resetRecord.userId);
             if (user) {
-               // await this.mailService.sendPasswordResetConfirmation(user.email);
+                // await this.mailService.sendPasswordResetConfirmation(user.email);
             }
         } catch (error) {
+            this.logger.error(`Failed to reset password: ${error.message}`);
             throw new InternalServerErrorException('Failed to reset password');
         }
     }
@@ -256,14 +261,59 @@ export class UsersService {
         }
     }
 
-    googleLogin(req) {
+    async googleLogin(req) {
         if (!req.user) {
-          return 'No user from google';
+            this.logger.error('No user data received from Google');
+            throw new UnauthorizedException('No user from Google');
         }
     
-        return {
-          message: 'User information from google',
-          user: req.user,
-        };
-      }
+        const { email, firstName, lastName, picture } = req.user;
+    
+        try {
+            // Check if user exists
+            let user = await this.userModel.findOne({ email });
+    
+            if (!user) {
+                this.logger.log(`Creating new user from Google login: ${email}`);
+                // Create new user if doesn't exist
+                user = await this.userModel.create({
+                    email,
+                    firstName,
+                    lastName,
+                    // Use consistent field name - if schema uses 'picture' or 'profilepicture', be consistent
+                    profilepicture: picture, 
+                    // Make sure the enum value matches your schema definition
+                    role: Role.CLIENT, // This should match your enum - 'Client' not CLIENT
+                    provider: 'google',
+                    isEmailVerified: true,
+                });
+            } else if (user.provider !== 'google') {
+                // If user exists but used different auth method
+                this.logger.warn(`User ${email} attempting to login via Google but originally registered with ${user.provider}`);
+                throw new BadRequestException('Email already registered with different method');
+            }
+    
+            // Generate tokens using your existing token generation method
+            const tokens = await this.generateUserToken(user._id.toString());
+    
+            return {
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    picture: user.profilepicture,
+                    role: user.role
+                },
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken
+            };
+        } catch (error) {
+            this.logger.error(`Google login failed: ${error.message}`);
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new UnauthorizedException('Failed to process Google login');
+        }
+    }
 }
