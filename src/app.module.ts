@@ -7,6 +7,11 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import config from './config/config';
 import { MailService } from './config/services/mail.service';
+import { SubscriptionsModule } from './subscription/subscription.module';
+import { PaymentsController } from './payment/payment.controller';
+import { PaymentsService } from './payment/payment.service';
+import Stripe from 'stripe';
+import { StripeModule } from './config/services/stripe.module';
 
 @Module({
   imports: [
@@ -40,8 +45,11 @@ import { MailService } from './config/services/mail.service';
       inject: [ConfigService],
     }),
     UsersModule,
+    StripeModule,
+    SubscriptionsModule,
+    
   ],
-  controllers: [AppController],
-  providers: [AppService,MailService],
+  controllers: [AppController, PaymentsController],
+  providers: [AppService,MailService, PaymentsService],
 })
 export class AppModule {}
