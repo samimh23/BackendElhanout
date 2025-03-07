@@ -12,6 +12,7 @@ import { PaymentsController } from './payment/payment.controller';
 import { PaymentsService } from './payment/payment.service';
 import Stripe from 'stripe';
 import { StripeModule } from './config/services/stripe.module';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
@@ -47,9 +48,9 @@ import { StripeModule } from './config/services/stripe.module';
     UsersModule,
     StripeModule,
     SubscriptionsModule,
-    
+    PaymentModule, 
   ],
-  controllers: [AppController, PaymentsController],
-  providers: [AppService,MailService, PaymentsService],
+  controllers: [AppController],
+  providers: [AppService,MailService],
 })
 export class AppModule {}
