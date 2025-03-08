@@ -13,9 +13,15 @@ import { PaymentsService } from './payment/payment.service';
 import Stripe from 'stripe';
 import { StripeModule } from './config/services/stripe.module';
 import { PaymentModule } from './payment/payment.module';
+import { join } from 'path';
+import { ServeStaticModule } from '@nestjs/serve-static';
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,

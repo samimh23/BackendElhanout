@@ -5,11 +5,13 @@ import { PaymentsService } from './payment.service';
 import { User, UserSchema } from 'src/users/Schemas/User.schema';
 import { StripeService } from 'src/config/services/stripe.service';
 import { SubscriptionsModule } from 'src/subscription/subscription.module';
+import { StripeModule } from 'src/config/services/stripe.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-    SubscriptionsModule, // Import the module containing SubscriptionsService
+    SubscriptionsModule,
+    StripeModule, // Import the module containing SubscriptionsService
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService, StripeService], // Include StripeService here

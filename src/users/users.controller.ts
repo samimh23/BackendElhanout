@@ -1,4 +1,4 @@
-    import { Controller, Post, Body, Logger, Param, Query, Get, UseGuards, NotFoundException, Req } from '@nestjs/common';
+    import { Controller, Post, Body, Logger, Param, Query, Get, UseGuards, NotFoundException, Req, UseInterceptors, UploadedFile, Delete, Put } from '@nestjs/common';
     import { UsersService } from './users.service';
     import { CreateUserDto } from './dtos/CreateUserDto.dto';
     import { User } from './Schemas/User.schema';
@@ -10,7 +10,10 @@
     import { ChangePasswordDto } from './dtos/changepassword.dto';
     import { AuthenticatedUser, CurrentUser } from 'src/config/decorators/current-user.decorators';
     import { GoogleOAuthGuard } from 'src/config/guards/google-oauth.guard';
-
+import { ProfileDto } from 'src/profile/dto/profile.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Express } from 'express';
+import { Multer } from 'multer';
 
     @Controller('users')
     export class UsersController {
@@ -88,4 +91,44 @@
         googleAuthRedirect(@Req() req) {
         return this.usersService.googleLogin(req);
         }
+
+        @Get('profile')
+@UseGuards(AuthenticationGuard)
+async getProfile(@CurrentUser() user: AuthenticatedUser) {
+  return this.usersService.getProfile(user.id);
+}
+
+/**
+ * Update the current user's profile
+ */
+@Put('profile')
+@UseGuards(AuthenticationGuard)
+async updateProfile(
+  @CurrentUser() user: AuthenticatedUser,
+  @Body() profileDto: ProfileDto
+) {
+  return this.usersService.updateProfile(user.id, profileDto);
+}
+
+/**
+ * Upload a profile picture
+ */
+@Post('profile/picture')
+@UseGuards(AuthenticationGuard)
+@UseInterceptors(FileInterceptor('file'))
+async uploadProfilePicture(
+  @CurrentUser() user: AuthenticatedUser,
+  @UploadedFile() file: Multer.File
+) {
+  return this.usersService.uploadProfilePicture(user.id, file);
+}
+
+/**
+ * Delete profile picture
+ */
+@Delete('profile/picture')
+@UseGuards(AuthenticationGuard)
+async removeProfilePicture(@CurrentUser() user: AuthenticatedUser) {
+  return this.usersService.removeProfilePicture(user.id);
+}
     }
