@@ -11,16 +11,22 @@ import { MailModule } from 'src/config/services/mail.module';
 import { APP_PIPE } from '@nestjs/core';
 import { RolesGuard } from 'src/config/guards/role.guard';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { MulterModule } from '@nestjs/platform-express';
+import { multerConfig } from 'src/config/mutler/mutler.config';
 
 @Module({
   imports: [
     ConfigModule,
+    MulterModule.register({
+      dest: './uploads/profiles',
+    }),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: RefreshToken.name, schema: RefreshTokenSchema },
       { name: ResetToken.name, schema: ResetTokenSchema },
     ]),
     MailModule,
+    MulterModule.register(multerConfig),
   ],
   providers: [
     GoogleStrategy,

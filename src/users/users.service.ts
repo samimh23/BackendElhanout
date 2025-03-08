@@ -11,10 +11,15 @@ import { RefreshToken } from './Schemas/refreshtoken.schema';
 import { v4 as uuidv4 } from 'uuid';
 import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
-
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
 import { ResetToken } from './Schemas/reset-token.schema';
 import { MailService } from 'src/config/services/mail.service';
 import { ChangePasswordDto } from './dtos/changepassword.dto';
+import { ProfileDto } from 'src/profile/dto/profile.dto';
+import { Express } from 'express';
+import { Multer } from 'multer';
 type LoginResult = { accessToken: string , refreshToken: string };
 
 @Injectable()
@@ -316,4 +321,129 @@ export class UsersService {
             throw new UnauthorizedException('Failed to process Google login');
         }
     }
+
+    async getProfile(userId: string) {
+        const user = await this.userModel.findById(userId);
+        
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+        
+        // Map the user data to match what your frontend expects
+        return {
+          id: user._id,
+          firstName: user.firstName || '',
+          lastName: user.lastName || '', 
+          email: user.email,
+          phonenumbers: user.phonenumbers || [],
+          profilepicture: user.profilepicture || '',
+          role: user.role,
+          // Include any additional fields needed by frontend
+        };
+      }
+      
+      /**
+       * Updates the profile data for a user
+       */
+      async updateProfile(userId: string, profileDto: ProfileDto) {
+        const user = await this.userModel.findById(userId);
+        
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+        
+        // Update only the provided fields
+        if (profileDto.firstName !== undefined) user.firstName = profileDto.firstName;
+        if (profileDto.lastName !== undefined) user.lastName = profileDto.lastName;
+        if (profileDto.email !== undefined && profileDto.email !== user.email) {
+          // Check if new email is already taken
+          const existingUser = await this.userModel.findOne({ email: profileDto.email });
+          if (existingUser && existingUser._id.toString() !== userId) {
+            throw new BadRequestException('Email is already in use');
+          }
+          user.email = profileDto.email;
+        }
+        if (profileDto.phonenumbers !== undefined) user.phonenumbers = profileDto.phonenumbers;
+        if (profileDto.cin !== undefined) user.cin = profileDto.cin;
+        
+        await user.save();
+        
+        return this.getProfile(userId);
+      }
+      
+      /**
+       * Uploads and sets a profile picture for a user
+       */
+      async uploadProfilePicture(userId: string, file: Multer.File) {
+        const user = await this.userModel.findById(userId);
+        
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+        
+        if (!file) {
+          throw new BadRequestException('No file provided');
+        }
+        
+        try {
+          // Check file type
+          const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
+          if (!allowedMimeTypes.includes(file.mimetype)) {
+            throw new BadRequestException('Invalid file type. Only JPEG, PNG and GIF are allowed');
+          }
+          
+          // Generate unique filename
+          const fileExt = path.extname(file.originalname);
+          const fileName = `${crypto.randomBytes(16).toString('hex')}${fileExt}`;
+          
+          // Ensure directory exists
+          const uploadDir = './uploads/profiles';
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+          
+          // Save the file
+          const filePath = path.join(uploadDir, fileName);
+          fs.writeFileSync(filePath, file.buffer);
+          
+          // Update user with profile picture URL
+          const fileUrl = `/uploads/profiles/${fileName}`;
+          user.profilepicture = fileUrl;
+          await user.save();
+          
+          return { profilepicture: fileUrl };
+        } catch (error) {
+          this.logger.error(`Failed to upload profile picture: ${error.message}`);
+          throw new InternalServerErrorException('Failed to upload profile picture');
+        }
+      }
+      
+      /**
+       * Removes the profile picture for a user
+       */
+      async removeProfilePicture(userId: string) {
+        const user = await this.userModel.findById(userId);
+        
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+        
+        // If user has a profile picture, remove the file and update the user
+        if (user.profilepicture) {
+          try {
+            const filePath = path.join('.', user.profilepicture);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          } catch (error) {
+            this.logger.error(`Failed to delete profile picture file: ${error.message}`);
+            // Continue even if file deletion fails
+          }
+          
+          user.profilepicture = null;
+          await user.save();
+        }
+        
+        return { message: 'Profile picture removed successfully' };
+      }
 }
