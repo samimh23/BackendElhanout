@@ -7,7 +7,7 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import config from './config/config';
 import { MailService } from './config/services/mail.service';
-
+import { join } from 'path';
 import { FarmModule } from './farm/farm.module';
 import { NormalMarketModule } from './market/market.module';
 
@@ -18,6 +18,8 @@ import { NormalMarketModule } from './market/market.module';
       cache: true,
       load: [config],
     }),
+    
+  
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

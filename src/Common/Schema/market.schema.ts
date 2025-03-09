@@ -1,9 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 export enum MarketsType {
-    FACTORY = 'factory',
     FARM = 'farm',
-    GROCERY = 'grocery',
     NORMAL = 'normal',
   }
 
