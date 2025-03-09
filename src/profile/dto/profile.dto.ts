@@ -3,7 +3,7 @@ import { IsEmail, IsString, IsOptional, IsArray, IsPhoneNumber } from 'class-val
 export class ProfileDto {
   @IsString()
   @IsOptional()
-  firstName?: string;
+  name?: string;
 
   @IsString()
   @IsOptional()
@@ -32,8 +32,8 @@ export class ProfileDto {
 
 export class ProfileResponseDto {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
+  
   email: string;
   phonenumbers: number[];
   profilepicture: string;

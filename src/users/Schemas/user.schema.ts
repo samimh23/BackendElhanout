@@ -5,10 +5,7 @@ import { Document } from 'mongoose';
 @Schema({ discriminatorKey: 'role', timestamps: true })
 export class User extends Document {
     @Prop()
-    firstName?: string;
-
-    @Prop()
-    lastName?: string;
+    name?: string;
 
     @Prop({ unique: true })
     email: string;

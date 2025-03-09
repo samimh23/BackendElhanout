@@ -305,8 +305,8 @@ export class UsersService {
                 user: {
                     id: user._id,
                     email: user.email,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
+                    firstName: user.name,
+                    
                     picture: user.profilepicture,
                     role: user.role
                 },
@@ -332,8 +332,7 @@ export class UsersService {
         // Map the user data to match what your frontend expects
         return {
           id: user._id,
-          firstName: user.firstName || '',
-          lastName: user.lastName || '', 
+          name: user.name ,
           email: user.email,
           phonenumbers: user.phonenumbers || [],
           profilepicture: user.profilepicture || '',
@@ -353,8 +352,7 @@ export class UsersService {
         }
         
         // Update only the provided fields
-        if (profileDto.firstName !== undefined) user.firstName = profileDto.firstName;
-        if (profileDto.lastName !== undefined) user.lastName = profileDto.lastName;
+        if (profileDto.name !== undefined) user.name = profileDto.name;
         if (profileDto.email !== undefined && profileDto.email !== user.email) {
           // Check if new email is already taken
           const existingUser = await this.userModel.findOne({ email: profileDto.email });
@@ -375,45 +373,44 @@ export class UsersService {
        * Uploads and sets a profile picture for a user
        */
       async uploadProfilePicture(userId: string, file: Multer.File) {
-        const user = await this.userModel.findById(userId);
-        
-        if (!user) {
-          throw new NotFoundException('User not found');
-        }
-        
-        if (!file) {
-          throw new BadRequestException('No file provided');
-        }
-        
         try {
-          // Check file type
-          const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
-          if (!allowedMimeTypes.includes(file.mimetype)) {
-            throw new BadRequestException('Invalid file type. Only JPEG, PNG and GIF are allowed');
+          const user = await this.userModel.findById(userId);
+          
+          if (!user) {
+            throw new NotFoundException('User not found');
           }
           
-          // Generate unique filename
-          const fileExt = path.extname(file.originalname);
-          const fileName = `${crypto.randomBytes(16).toString('hex')}${fileExt}`;
-          
-          // Ensure directory exists
-          const uploadDir = './uploads/profiles';
-          if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+          if (!file) {
+            throw new BadRequestException('No file provided');
           }
           
-          // Save the file
-          const filePath = path.join(uploadDir, fileName);
-          fs.writeFileSync(filePath, file.buffer);
+          // Log file details
+          console.log('Processing file:', {
+            originalName: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            path: file.path
+          });
           
-          // Update user with profile picture URL
-          const fileUrl = `/uploads/profiles/${fileName}`;
+          // Create the proper URL path with leading slash
+          const fileUrl = `/uploads/profiles/${file.filename}`;
+          console.log('File URL to be saved:', fileUrl);
+          
+          // Update user record
           user.profilepicture = fileUrl;
           await user.save();
           
-          return { profilepicture: fileUrl };
+          console.log('Updated user profile with picture URL:', fileUrl);
+          
+          return { 
+            success: true,
+            message: 'Profile picture uploaded successfully',
+            profilepicture: fileUrl,
+            fullUrl: `http://localhost:3000${fileUrl}`
+          };
         } catch (error) {
           this.logger.error(`Failed to upload profile picture: ${error.message}`);
+          console.error('Error details:', error);
           throw new InternalServerErrorException('Failed to upload profile picture');
         }
       }
@@ -445,5 +442,18 @@ export class UsersService {
         }
         
         return { message: 'Profile picture removed successfully' };
+      }
+
+      async updateProfilePicture(userId: string, profilePictureUrl: string) {
+        const user = await this.userModel.findById(userId);
+        
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+        
+        user.profilepicture = profilePictureUrl;
+        await user.save();
+        
+        return user;
       }
 }

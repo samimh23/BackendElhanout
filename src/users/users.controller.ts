@@ -1,4 +1,4 @@
-    import { Controller, Post, Body, Logger, Param, Query, Get, UseGuards, NotFoundException, Req, UseInterceptors, UploadedFile, Delete, Put } from '@nestjs/common';
+    import { Controller, Post, Body, Logger, Param, Query, Get, UseGuards, NotFoundException, Req, UseInterceptors, UploadedFile, Delete, Put, BadRequestException, Request } from '@nestjs/common';
     import { UsersService } from './users.service';
     import { CreateUserDto } from './dtos/CreateUserDto.dto';
     import { User } from './Schemas/User.schema';
@@ -11,8 +11,10 @@
     import { AuthenticatedUser, CurrentUser } from 'src/config/decorators/current-user.decorators';
     import { GoogleOAuthGuard } from 'src/config/guards/google-oauth.guard';
 import { ProfileDto } from 'src/profile/dto/profile.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { Express } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { Multer } from 'multer';
 
     @Controller('users')
@@ -93,10 +95,10 @@ import { Multer } from 'multer';
         }
 
         @Get('profile')
-@UseGuards(AuthenticationGuard)
-async getProfile(@CurrentUser() user: AuthenticatedUser) {
-  return this.usersService.getProfile(user.id);
-}
+        @UseGuards(AuthenticationGuard)
+        async getProfile(@CurrentUser() user: AuthenticatedUser) {
+        return this.usersService.getProfile(user.id);
+        }
 
 /**
  * Update the current user's profile
@@ -109,19 +111,59 @@ async updateProfile(
 ) {
   return this.usersService.updateProfile(user.id, profileDto);
 }
+@Post('upload-profile-picture')
+@UseGuards(AuthenticationGuard)
+@UseInterceptors(
+  FileInterceptor('profilePicture', {
+    storage: diskStorage({  
+      destination: './uploads/profiles',
+      filename: (req, file, callback) => {
+        // Create a unique file name
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = extname(file.originalname);
+        callback(null, `profile-${uniqueSuffix}${ext}`);
+      },
+    }),
+    fileFilter: (req, file, callback) => {
+      // Accept only image files
+      const validMimeTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+      if (validMimeTypes.includes(file.mimetype)) {
+        callback(null, true);
+      } else {
+        callback(new BadRequestException('Invalid file type. Only JPG and PNG allowed.'), false);
+      }
+    },
+    limits: {
+      fileSize: 1024 * 1024 * 2, // 2MB max file size
+    },
+  }),
+)
+async uploadProfilePicture(@UploadedFile() file: Multer.File, @Request() req) {
+  if (!file) {
+    throw new BadRequestException('No file uploaded');
+  }
+  console.log('Upload request received');
+  console.log('req.user:', req.user);
+  console.log('userId:', req.user.userId);
+  // Get the user ID from the authenticated user
+  const userId = req.user.id;
+ 
+
+  // Create a URL for the uploaded file
+  const fileUrl = `${process.env.API_BASE_URL || 'http://localhost:3000'}/uploads/profiles/${file.filename}`;
+  
+  // Update the user's profile with the new picture URL
+  await this.usersService.updateProfilePicture(userId, fileUrl);
+  
+  return {
+    message: 'Profile picture uploaded successfully',
+    profilePicture: fileUrl,
+  };
+}
 
 /**
  * Upload a profile picture
  */
-@Post('profile/picture')
-@UseGuards(AuthenticationGuard)
-@UseInterceptors(FileInterceptor('file'))
-async uploadProfilePicture(
-  @CurrentUser() user: AuthenticatedUser,
-  @UploadedFile() file: Multer.File
-) {
-  return this.usersService.uploadProfilePicture(user.id, file);
-}
 
 /**
  * Delete profile picture
