@@ -1,7 +1,4 @@
-// update-sale.dto.ts
-import { IsEnum, IsOptional, IsNumber, IsDate, IsString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-import { SaleStatus } from '../Schema/farm-sale.schema';
+import { IsOptional, IsNumber, IsString, Min } from 'class-validator';
 
 export class UpdateSaleDto {
   @IsOptional()
@@ -11,30 +8,15 @@ export class UpdateSaleDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0)
-  pricePerUnit?: number;
-
-  @IsOptional()
-  @IsEnum(SaleStatus)
-  status?: SaleStatus;
-
-  @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  auctionStartDate?: Date;
-
-  @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  auctionEndDate?: Date;
+  @Min(1)
+  quantityMin?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
-  startingBid?: number;
-}
+  pricePerUnit?: number;
 
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
