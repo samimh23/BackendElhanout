@@ -26,7 +26,7 @@ import { JwtModule } from '@nestjs/jwt';
       inject: [ConfigService],
     }),
     JwtModule.registerAsync({
-      global: true, 
+      global: true,
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const secret = configService.get<string>('jwt.secret');
@@ -35,8 +35,8 @@ import { JwtModule } from '@nestjs/jwt';
         }
         return {
           secret: secret,
-          signOptions: { 
-            expiresIn: configService.get<string>('jwt.expiresIn') 
+          signOptions: {
+            expiresIn: configService.get<string>('jwt.expiresIn'),
           },
         };
       },
@@ -48,6 +48,6 @@ import { JwtModule } from '@nestjs/jwt';
     OrderModule,
   ],
   controllers: [AppController],
-  providers: [AppService,MailService],
+  providers: [AppService, MailService],
 })
 export class AppModule {}

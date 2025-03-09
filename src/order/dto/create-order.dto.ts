@@ -1,40 +1,44 @@
-import { Type } from "class-transformer";
-import { IsArray, IsBoolean, IsDate, IsNotEmpty, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
-
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsBoolean,
+  IsDate,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateNested,
+  IsMongoId,
+} from 'class-validator';
 
 class ProductOrderDto {
-    @IsString()
-    @IsNotEmpty()
-    productId: string;
+  @IsMongoId()
+  productId: string;
 
-    @IsString()
-    @IsNotEmpty()
-    name: string;
-  
-    @IsNumber()
-    @Min(1) 
-    quantity: number;
-  }
+  @IsNumber()
+  stock: number;
+}
 
 export class CreateOrderDto {
-  @IsString()
+  @IsMongoId()
   @IsNotEmpty()
-  shop: string; 
+  shop: string;
 
-  @IsString()
+  @IsMongoId()
   @IsNotEmpty()
-  iduser: string; 
+  user: string; // renamed from iduser
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProductOrderDto)
-  products: ProductOrderDto[]; 
+  products: ProductOrderDto[];
 
-  @IsDate()
   @IsOptional()
-  dateOrder?: string; 
+  @Type(() => Date)
+  dateOrder?: Date;
 
+  @IsOptional()
   @IsBoolean()
-  @IsOptional()
-  isconfirmed?: boolean; 
+  isConfirmed?: boolean;
 }

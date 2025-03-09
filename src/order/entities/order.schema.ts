@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Types, Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Types, Document } from 'mongoose';
 
 @Schema()
 export class Order extends Document {
@@ -10,19 +10,19 @@ export class Order extends Document {
   shop: Types.ObjectId;
   
   @Prop({ 
-    type: [{ productId: { type: Types.ObjectId, ref: 'Product' }, quantity: Number }], 
+    type: [{ productId: { type: Types.ObjectId, ref: 'Product' }, quantity: { type: Number, required: true } }], 
     required: true 
   })
   products: { productId: Types.ObjectId; quantity: number }[];
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  iduser: Types.ObjectId;
+  user: Types.ObjectId; // renamed from iduser
 
   @Prop({ default: Date.now })
   dateOrder: Date;
 
   @Prop({ default: false })
-  isconfirmed: boolean;
+  isConfirmed: boolean;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
