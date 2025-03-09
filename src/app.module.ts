@@ -10,6 +10,8 @@ import { MailService } from './config/services/mail.service';
 import { join } from 'path';
 import { FarmModule } from './farm/farm.module';
 import { NormalMarketModule } from './market/market.module';
+import { ProductModule } from './product/product.module';
+import { OrderModule } from './order/order.module';
 
 @Module({
   imports: [
@@ -48,6 +50,8 @@ import { NormalMarketModule } from './market/market.module';
 
     FarmModule,
     NormalMarketModule,
+    ProductModule,
+    OrderModule
   ],
   controllers: [AppController],
   providers: [AppService,MailService],

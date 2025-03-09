@@ -10,7 +10,7 @@ export type MarketsDocument = Markets & Document;
 export class Markets {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true }) 
   owner: Types.ObjectId;
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
+  @Prop({ type: [{ type: String, ref: 'Product' }], default: [] })
   products: Types.ObjectId[];
 
   @Prop({ type: String, required: true, enum: MarketsType })
