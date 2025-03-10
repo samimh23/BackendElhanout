@@ -13,8 +13,8 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
-  @UseGuards(RolesGuard,AuthenticationGuard) 
-  @Roles(Role.WHOLESALER)
+  @UseGuards(AuthenticationGuard) 
+  
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
   }

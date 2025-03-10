@@ -44,7 +44,7 @@ export class Product extends Document {
   @Prop({ default: 0})
   DiscountValue: number;
   
-  @Prop({ type: Types.ObjectId, ref: 'Shop', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'NormalMarket', required: true })
   shop: Types.ObjectId;
 }
 

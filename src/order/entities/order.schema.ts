@@ -6,8 +6,8 @@ export class Order extends Document {
   @Prop({ required: true })
   idOrder: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Shop', required: true })
-  shop: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'NormalMarket', required: true })
+  normalMarket: Types.ObjectId;
   
   @Prop({ 
     type: [{ productId: { type: Types.ObjectId, ref: 'Product' }, quantity: { type: Number, required: true } }], 

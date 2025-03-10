@@ -2,9 +2,9 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Order } from './entities/order.schema';
-import { Shop } from 'src/shop/entities/shop.schema';
 import { Product } from 'src/product/entities/product.schema';
 import { Model, Types } from 'mongoose';
+import { NormalMarket } from 'src/market/schema/normal-market.schema';
 
 @Injectable()
 export class OrderService {
@@ -12,16 +12,16 @@ export class OrderService {
 
   constructor(
     @InjectModel(Order.name) private orderModel: Model<Order>,
-    @InjectModel(Shop.name) private shopModel: Model<Shop>,
+    @InjectModel(NormalMarket.name) private shopModel: Model<NormalMarket>,
     @InjectModel(Product.name) private productModel: Model<Product>,
   ) {}
 
   async createAnOrder(createOrderDto: CreateOrderDto): Promise<Order> {
-    const { shop, products, user, dateOrder, isConfirmed } = createOrderDto;
+    const { normalMarket, products, user, dateOrder, isConfirmed } = createOrderDto;
   
     // Verify shop existence and its products
     const shopData = await this.shopModel
-      .findById(shop)
+      .findById(normalMarket)
       .populate('products')
       .exec();
     if (!shopData) {
@@ -48,7 +48,7 @@ export class OrderService {
     // Create new order document
     const order = new this.orderModel({
       idOrder: Date.now().toString(), // generate a simple idOrder string
-      shop: new Types.ObjectId(shop),
+      normalMarket: new Types.ObjectId(normalMarket),
       user: new Types.ObjectId(user),
       products: products.map((p) => ({
         productId: new Types.ObjectId(p.productId),
@@ -61,7 +61,7 @@ export class OrderService {
     });
   
     this.logger.log(
-      `Creating order for shop: ${shop} with products: ${JSON.stringify(products)}`
+      `Creating order for shop: ${normalMarket} with products: ${JSON.stringify(products)}`
     );
   
     return order.save();
@@ -148,7 +148,7 @@ export class OrderService {
 
     // Validate shop existence and products similar to createAnOrder
     const shopData = await this.shopModel
-      .findById(updateOrderDto.shop)
+      .findById(updateOrderDto.normalMarket)
       .populate('products')
       .exec();
     if (!shopData) {
@@ -162,7 +162,7 @@ export class OrderService {
       }
     });
 
-    order.shop = new Types.ObjectId(updateOrderDto.shop);
+    order.normalMarket = new Types.ObjectId(updateOrderDto.normalMarket);
     order.user = new Types.ObjectId(updateOrderDto.user);
     order.products = updateOrderDto.products.map((p) => ({
       productId: new Types.ObjectId(p.productId),

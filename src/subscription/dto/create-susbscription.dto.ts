@@ -3,7 +3,7 @@ import { Role } from 'src/users/Schemas/Role.enum';
 
 export class CreateSubscriptionDto {
     @IsNotEmpty()
-    @IsEnum([Role.WHOLESALER, Role.Farmer])
+    @IsEnum([Role.MERCHANT, Role.Farmer])
     roleSubscribed: Role;
     
     @IsOptional()

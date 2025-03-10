@@ -22,6 +22,5 @@ export class CreateProductDto {
     @IsString()
     shop: string;
 
-    @IsString()
-    buyer: string;
+
 }

@@ -23,7 +23,7 @@ class ProductOrderDto {
 export class CreateOrderDto {
   @IsMongoId()
   @IsNotEmpty()
-  shop: string;
+  normalMarket: string;
 
   @IsMongoId()
   @IsNotEmpty()

@@ -4,8 +4,8 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Product } from './entities/product.schema';
 import { Model } from 'mongoose';
-import { Shop } from 'src/shop/entities/shop.schema';
 import { User } from 'src/users/Schemas/User.schema';
+import { NormalMarket } from 'src/market/schema/normal-market.schema';
 
 @Injectable()
 export class ProductService {
@@ -13,10 +13,9 @@ export class ProductService {
     // Inject the Product model
     @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(Shop.name) private shopModel: Model<Shop>,
+    @InjectModel(NormalMarket.name) private shopModel: Model<NormalMarket>,
   ) {}
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const user = await this.userModel.findById(createProductDto.buyer);
     const shop = await this.shopModel.findById(createProductDto.shop);
 
     if (!shop) {
@@ -25,7 +24,6 @@ export class ProductService {
 
     const newProduct = new this.productModel({
       ...createProductDto,
-      shopOwner: user._id,
       shop: shop._id,
     });
 
@@ -104,5 +102,7 @@ export class ProductService {
   async getDiscountedProduct(): Promise<Product[]> {
     return this.productModel.find({ isDiscounted: true }).exec();
   }
+  
+
   
 }

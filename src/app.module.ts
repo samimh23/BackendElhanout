@@ -15,6 +15,12 @@ import { StripeModule } from './config/services/stripe.module';
 import { PaymentModule } from './payment/payment.module';
 import { join } from 'path';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { OrderModule } from './order/order.module';
+import { ProductModule } from './product/product.module';
+import { NormalMarketModule } from './market/market.module';
+import { FarmSaleModule } from './farm-sale/farm-sale.module';
+import { FarmCropModule } from './farm-crop/farm-crop.module';
+import { FarmModule } from './farm/farm.module';
 
 @Module({
   imports: [
@@ -54,7 +60,13 @@ import { ServeStaticModule } from '@nestjs/serve-static';
     UsersModule,
     StripeModule,
     SubscriptionsModule,
+    NormalMarketModule,
+    ProductModule,
+    OrderModule,
     PaymentModule, 
+    FarmModule,
+    FarmCropModule,
+    FarmSaleModule,
   ],
   controllers: [AppController],
   providers: [AppService,MailService],
