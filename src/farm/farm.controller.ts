@@ -10,9 +10,7 @@ import { Role } from 'src/users/Schemas/Role.enum';
 @Controller('farm')
 export class FarmController {
   constructor(private readonly farmMarketService: FarmService) {}
-  @UseGuards(RolesGuard,AuthenticationGuard)
-  @Roles( Role.Farmer)
-  @Post()
+    @Post()
   async create(@Body() createFarmMarketDto: CreateFarmMarketDto): Promise<FarmMarket> {
     return this.farmMarketService.create(createFarmMarketDto);
   }

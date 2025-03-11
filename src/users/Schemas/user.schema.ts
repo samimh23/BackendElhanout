@@ -31,6 +31,15 @@ export class User extends Document {
 
     @Prop({ required: true, enum: Role })
     role: Role;
+
+    @Prop({ default: false })
+    isTwoFactorEnabled: boolean;
+    
+    @Prop()
+    twoFactorSecret?: string;
+    
+    @Prop({ default: false })
+    isTwoFactorVerified: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

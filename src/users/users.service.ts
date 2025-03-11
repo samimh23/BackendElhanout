@@ -20,19 +20,102 @@ import { ChangePasswordDto } from './dtos/changepassword.dto';
 import { ProfileDto } from 'src/profile/dto/profile.dto';
 import { Express } from 'express';
 import { Multer } from 'multer';
-type LoginResult = { accessToken: string , refreshToken: string };
-
+import { TwoFactorAuthService } from './two-factor-auth.service';
+import { TwoFactorAuthDto, TwoFactorEnableDto } from './dtos/TwoFactorAuthDto.dto';
+type LoginResult = { 
+    accessToken: string, 
+    refreshToken: string,
+    user?: {
+      id: string,
+      email: string,
+      role: string,
+      name?: string
+    }
+  };
 @Injectable()
 export class UsersService {
     private readonly logger = new Logger(UsersService.name);
 
     constructor(
+        
         @InjectModel(User.name) private userModel: Model<User>,
         @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshToken>,
         @InjectModel(ResetToken.name) private resetTokenModel: Model<ResetToken>,
-        private readonly mailService: MailService,
+      
+        private readonly twoFactorAuthService: TwoFactorAuthService, private readonly mailService: MailService,
         private jwtService: JwtService
     ) {}
+
+    async generateTwoFactorSecret(userId: string) {
+        return this.twoFactorAuthService.generateTwoFactorSecret(userId);
+    }
+    
+    async enableTwoFactor(userId: string, enableDto: TwoFactorEnableDto) {
+        const isEnabled = await this.twoFactorAuthService.enableTwoFactor(
+            userId, 
+            enableDto.twoFactorCode
+        );
+        
+        if (!isEnabled) {
+            throw new UnauthorizedException('Invalid two-factor code');
+        }
+        
+        return { message: 'Two-factor authentication enabled successfully' };
+    }
+    
+    async verifyTwoFactorAuth(userId: string, twoFactorAuthDto: TwoFactorAuthDto): Promise<LoginResult> {
+        try {
+          console.log(`Verifying 2FA for user ID: ${userId}`);
+          console.log(`Received code: ${twoFactorAuthDto.twoFactorCode}`);
+          
+          // Verify the 2FA code with a wider time window to handle time sync issues
+          const isCodeValid = await this.twoFactorAuthService.verifyTwoFactorCode(
+            userId,
+            twoFactorAuthDto.twoFactorCode,
+            { window: 2 }  // Allow codes from +/- 1 minute window
+          );
+          
+          if (!isCodeValid) {
+            console.log(`Invalid 2FA code for user: ${userId}`);
+            throw new UnauthorizedException('Invalid two-factor code');
+          }
+          
+          console.log(`2FA verification successful for user: ${userId}`);
+          
+          // Find the user to include user data in response
+          const user = await this.userModel.findById(userId);
+          if (!user) {
+            throw new NotFoundException('User not found');
+          }
+          
+          // Generate tokens after successful 2FA verification
+          const tokens = await this.generateUserToken(userId);
+          
+          // Return tokens AND user info
+          return { 
+            accessToken: tokens.accessToken, 
+            refreshToken: tokens.refreshToken,
+            user: {
+              id: user._id.toString(),
+              email: user.email,
+              role: user.role,
+              name: user.name,
+            }
+          };
+        } catch (error) {
+          console.error('Error in 2FA verification:', error.message);
+          throw error;
+        }
+      }
+    async disableTwoFactor(userId: string) {
+        const isDisabled = await this.twoFactorAuthService.disableTwoFactor(userId);
+        
+        if (!isDisabled) {
+            throw new NotFoundException('User not found');
+        }
+        
+        return { message: 'Two-factor authentication disabled successfully' };
+    }
 
     async create(createUserDto: CreateUserDto): Promise<User> {
         const { email, password, ...rest } = createUserDto;
@@ -55,7 +138,7 @@ export class UsersService {
         ///return status
     }
 
-    async login(logindto: LoginDto): Promise<LoginResult> {
+    async login(logindto: LoginDto): Promise<LoginResult | { userId: string, requireTwoFactor: boolean }> {
         const { email, password } = logindto;
         const userExist = await this.userModel.findOne({ email });
         
@@ -63,18 +146,27 @@ export class UsersService {
             throw new UnauthorizedException('Invalid email or password');
         }
         
-        // First, check if the user has a password (they might have registered via Google)
+        // Check for password
         if (!userExist.password) {
             this.logger.error(`User ${email} attempted to login with password but has no password stored`);
             throw new UnauthorizedException('This account cannot be accessed with a password. Try signing in with Google.');
         }
         
-        // Now we can safely compare passwords
+        // Compare passwords
         const passwordMatch = await bcrypt.compare(password, userExist.password);
         if (!passwordMatch) {
             throw new UnauthorizedException('Invalid email or password');
         }
     
+        // Check if 2FA is enabled
+        if (userExist.isTwoFactorEnabled) {
+            return {
+                userId: userExist._id.toString(),
+                requireTwoFactor: true
+            };
+        }
+        
+        // If 2FA is not enabled, generate tokens as usual
         const tokens = await this.generateUserToken(userExist._id.toString());
         return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
     }
@@ -285,15 +377,16 @@ export class UsersService {
                     email,
                     firstName,
                     lastName,
-                    // Use consistent field name - if schema uses 'picture' or 'profilepicture', be consistent
-                    profilepicture: picture, 
-                    // Make sure the enum value matches your schema definition
-                    role: Role.CLIENT, // This should match your enum - 'Client' not CLIENT
+                    profilepicture: picture,
+                    role: 'Client', // Using string value that matches your enum
                     provider: 'google',
                     isEmailVerified: true,
+                    // Add a random password for Google users to satisfy schema requirement
+                    password: crypto.randomBytes(32).toString('hex'),
+                    // Or if you have bcrypt available:
+                    // password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
                 });
             } else if (user.provider !== 'google') {
-                // If user exists but used different auth method
                 this.logger.warn(`User ${email} attempting to login via Google but originally registered with ${user.provider}`);
                 throw new BadRequestException('Email already registered with different method');
             }
@@ -305,8 +398,8 @@ export class UsersService {
                 user: {
                     id: user._id,
                     email: user.email,
-                    firstName: user.name,
-                    
+                    firstName: user.name, // Changed from user.name to match the schema
+                    lastName: user.name, // Added lastName
                     picture: user.profilepicture,
                     role: user.role
                 },

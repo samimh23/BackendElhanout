@@ -84,10 +84,7 @@ import { Multer } from 'multer';
         async resetPassword(@Body('verifiedToken') verifiedToken: string, @Body('newPassword') newPassword: string) {
             return this.usersService.resetPassword(verifiedToken, newPassword);
         }
-        @Get()
-        @UseGuards(GoogleOAuthGuard)
-        async googleAuth(@Req() req) {}
-    
+       
         @Get('google-redirect')
         @UseGuards(GoogleOAuthGuard)
         googleAuthRedirect(@Req() req) {
