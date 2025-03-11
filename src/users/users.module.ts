@@ -13,6 +13,8 @@ import { RolesGuard } from 'src/config/guards/role.guard';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { MulterModule } from '@nestjs/platform-express';
 import { multerConfig } from 'src/config/mutler/mutler.config';
+import { TwoFactorAuthController } from './two-factor-auth.controller';
+import { TwoFactorAuthService } from './two-factor-auth.service';
 
 @Module({
   imports: [
@@ -31,12 +33,13 @@ import { multerConfig } from 'src/config/mutler/mutler.config';
   providers: [
     GoogleStrategy,
     UsersService,
+    TwoFactorAuthService,
     {
       provide: APP_PIPE,
       useClass: ValidationPipe,
     },
   ],
-  controllers: [UsersController],
-  exports: [UsersService],
+  controllers: [UsersController,TwoFactorAuthController],
+  exports: [UsersService,TwoFactorAuthService],
 })
 export class UsersModule {}

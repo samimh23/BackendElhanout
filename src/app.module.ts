@@ -21,6 +21,7 @@ import { NormalMarketModule } from './market/market.module';
 import { FarmSaleModule } from './farm-sale/farm-sale.module';
 import { FarmCropModule } from './farm-crop/farm-crop.module';
 import { FarmModule } from './farm/farm.module';
+import { TwoFactorAuthModule } from './users/two-factor-auth.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { FarmModule } from './farm/farm.module';
     FarmModule,
     FarmCropModule,
     FarmSaleModule,
+    TwoFactorAuthModule
   ],
   controllers: [AppController],
   providers: [AppService,MailService],
