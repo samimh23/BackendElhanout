@@ -1,11 +1,18 @@
-import { IsString, IsNumber, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional, Min, Max, IsIn } from 'class-validator';
 
 export class ShareFractionDto {
+  @IsNotEmpty()
   @IsString()
-  recipientAddress: string;  // Recipient's public key
-  
+  recipientAddress: string;
+
+  @IsNotEmpty()
   @IsNumber()
   @Min(0.01)
   @Max(100)
-  percentage: number;        // Percentage to share (0-100)
+  percentage: number;
+  
+  @IsOptional()
+  @IsString()
+  @IsIn(['user', 'market'])
+  recipientType?: 'user' | 'market'; // Optional field to explicitly specify recipient type
 }

@@ -1,22 +1,27 @@
 import { diskStorage } from 'multer';
 import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'fs';
 
-const UPLOADS_FOLDER = './uploads';
+// Define uploads directory path
+const UPLOADS_PATH = './uploads/markets';
 
-// Ensure uploads folder exists
-if (!fs.existsSync(UPLOADS_FOLDER)) {
-  fs.mkdirSync(UPLOADS_FOLDER, { recursive: true });
+// Ensure uploads directory exists
+if (!fs.existsSync(UPLOADS_PATH)) {
+  fs.mkdirSync(UPLOADS_PATH, { recursive: true });
+  console.log(`Created uploads directory: ${UPLOADS_PATH}`);
 }
 
 export const multerConfig = {
   storage: diskStorage({
-    destination: UPLOADS_FOLDER, // Save images in the uploads folder
-    filename: (req, file, cb) => {
-      const fileExt = path.extname(file.originalname); // Get the file extension
-      const filename = `${uuidv4()}${fileExt}`; // Generate a unique filename
-      cb(null, filename);
+    destination: (req, file, callback) => {
+      callback(null, UPLOADS_PATH);
+    },
+    filename: (req, file, callback) => {
+      // Create a unique filename with timestamp and UUID
+      const uniqueName = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+      callback(null, uniqueName);
     },
   }),
+  // Remove fileFilter and limits to allow all files
 };

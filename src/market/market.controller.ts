@@ -1,7 +1,7 @@
 import { 
   Controller, Post, Body, Get, Param, Delete, Patch, 
   UseGuards, UploadedFile, UseInterceptors, 
-  BadRequestException, NotFoundException
+  BadRequestException, NotFoundException, Request
 } from '@nestjs/common';
 import { MarketService } from './market.service';
 import { CreateMarketDto } from './dto/create-market.dto';
@@ -20,13 +20,14 @@ import { multerConfig } from 'src/config/multer.config';
 export class MarketController {
   constructor(private readonly normalMarketService: MarketService) {}
 
-  @UseGuards( RolesGuard)
+  @UseGuards(AuthenticationGuard, RolesGuard)
   @Roles(Role.MERCHANT)
   @Post()
   @UseInterceptors(FileInterceptor('marketImage', multerConfig))
   async create(
     @Body() createNormalMarketDto: CreateMarketDto,
-    @UploadedFile() marketImage: Multer.File
+    @UploadedFile() marketImage: Multer.File,
+    @Request() req
   ): Promise<NormalMarket> {
     console.log("Creating Market:", createNormalMarketDto.marketName);
 
@@ -35,18 +36,28 @@ export class MarketController {
     }
 
     createNormalMarketDto.marketImage = marketImage.path;
-    return this.normalMarketService.create(createNormalMarketDto);
+    
+    // Extract userId from the authenticated request
+    const userId = req.user.userId;
+    
+    return this.normalMarketService.create(createNormalMarketDto, userId);
   }
 
   // NEW ENDPOINT: Create NFT for existing market
   @UseGuards(AuthenticationGuard, RolesGuard)
   @Roles(Role.MERCHANT)
   @Post(':id/create-nft')
-  async createNFT(@Param('id') id: string): Promise<NormalMarket> {
+  async createNFT(
+    @Param('id') id: string,
+    @Request() req
+  ): Promise<NormalMarket> {
     console.log("Creating NFT for Market ID:", id);
     
+    // Extract userId from the authenticated request
+    const userId = req.user.userId;
+    
     try {
-      const updatedMarket = await this.normalMarketService.createNFTForExistingMarket(id);
+      const updatedMarket = await this.normalMarketService.createTokenForExistingMarket(id, userId);
       return updatedMarket;
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -78,9 +89,13 @@ export class MarketController {
   async update(
     @Param('id') id: string,
     @Body() updateNormalMarketDto: UpdateMarketDto,
-    @UploadedFile() marketImage?: Multer.File
+    @UploadedFile() marketImage: Multer.File,
+    @Request() req
   ): Promise<NormalMarket> {
     console.log("Updating Market ID:", id);
+    
+    // Extract userId from the authenticated request
+    const userId = req.user.userId;
     
     // First check if market exists
     const existingMarket = await this.normalMarketService.findOne(id);
@@ -93,14 +108,20 @@ export class MarketController {
       updateNormalMarketDto.marketImage = marketImage.path;
     }
 
-    return this.normalMarketService.update(id, updateNormalMarketDto);
+    return this.normalMarketService.update(id, updateNormalMarketDto, userId);
   }
 
   @UseGuards(AuthenticationGuard, RolesGuard)
   @Roles(Role.MERCHANT)
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<NormalMarket> {
+  async remove(
+    @Param('id') id: string,
+    @Request() req
+  ): Promise<NormalMarket> {
     console.log("Deleting Market ID:", id);
+    
+    // Extract userId from the authenticated request
+    const userId = req.user.userId;
     
     // First check if market exists
     const existingMarket = await this.normalMarketService.findOne(id);
@@ -108,15 +129,21 @@ export class MarketController {
       throw new NotFoundException(`Market with id ${id} not found`);
     }
     
-    return this.normalMarketService.remove(id);
+    return this.normalMarketService.remove(id, userId);
   }
 
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles(Role.MERCHANT)
   @Post(':id/share')
   async shareFractions(
     @Param('id') id: string,
-    @Body() shareData: ShareFractionDto
+    @Body() shareData: ShareFractionDto,
+    @Request() req
   ) {
+    // Extract userId from the authenticated request
+    const userId = req.user.userId;
+    
     // Use normalMarketService instead of marketService
-    return this.normalMarketService.shareFractionalNFT(id, shareData);
+    return this.normalMarketService.shareFractionalNFT(id, shareData, userId);
   }
 }

@@ -19,8 +19,11 @@ export class CreateMarketDto {
   @IsOptional()
   marketImage: string;
 
-  @IsMongoId()
-  owner: string;
+
+
+  @IsArray()
+  @IsOptional()
+  products: string[];
 
   @IsString()
   marketType: string;

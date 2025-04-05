@@ -18,7 +18,6 @@ import { ResetToken } from './Schemas/reset-token.schema';
 import { MailService } from 'src/config/services/mail.service';
 import { ChangePasswordDto } from './dtos/changepassword.dto';
 import { ProfileDto } from 'src/profile/dto/profile.dto';
-import { Express } from 'express';
 import { Multer } from 'multer';
 type LoginResult = { accessToken: string , refreshToken: string };
 
