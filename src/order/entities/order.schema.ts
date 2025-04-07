@@ -23,6 +23,9 @@ export class Order extends Document {
 
   @Prop({ default: false })
   isConfirmed: boolean;
+
+  @Prop({ default: false })
+  totalPrice: number;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

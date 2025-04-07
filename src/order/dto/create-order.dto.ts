@@ -41,4 +41,7 @@ export class CreateOrderDto {
   @IsOptional()
   @IsBoolean()
   isConfirmed?: boolean;
+
+  @IsNumber()
+  totalPrice: number;
 }

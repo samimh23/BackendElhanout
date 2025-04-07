@@ -1,4 +1,4 @@
-import { IsArray, IsDate, IsNumber, IsString } from "class-validator";
+import { IsArray, IsDate, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class CreateProductDto {
     @IsString()
@@ -16,8 +16,9 @@ export class CreateProductDto {
     @IsNumber()
     stock: number;
 
-    @IsArray()
-    images: string[];
+    @IsString()
+    @IsOptional()
+    image: string; 
     
     @IsString()
     shop: string;

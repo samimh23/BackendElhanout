@@ -5,6 +5,8 @@ import { Order } from './entities/order.schema';
 import { Product } from 'src/product/entities/product.schema';
 import { Model, Types } from 'mongoose';
 import { NormalMarket } from 'src/market/schema/normal-market.schema';
+import { User } from 'src/users/Schemas/User.schema';
+import axios from 'axios';
 
 @Injectable()
 export class OrderService {
@@ -14,11 +16,22 @@ export class OrderService {
     @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(NormalMarket.name) private shopModel: Model<NormalMarket>,
     @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async createAnOrder(createOrderDto: CreateOrderDto): Promise<Order> {
-    const { normalMarket, products, user, dateOrder, isConfirmed } = createOrderDto;
-  
+    const { normalMarket, products, user, dateOrder, isConfirmed ,totalPrice } = createOrderDto;
+   const usr = await this.userModel.findById(user).exec();
+    if (!usr) {
+      throw new BadRequestException('User not found');
+    }
+    const payload = {
+      "senderAccountId": usr.headerAccountId,
+      "senderPrivateKey": usr.privateKey,
+      "amount": totalPrice,
+    }
+    const response = await axios.post('http://localhost:3002/api/token/Lock' , payload);
+    
     // Verify shop existence and its products
     const shopData = await this.shopModel
       .findById(normalMarket)
@@ -58,6 +71,7 @@ export class OrderService {
       })),
       dateOrder: dateOrder ? new Date(dateOrder) : new Date(),
       isConfirmed: isConfirmed ?? false,
+      totalPrice: totalPrice,
     });
   
     this.logger.log(
@@ -81,11 +95,30 @@ export class OrderService {
     if (!order) {
       throw new BadRequestException('Order not found');
     }
-
+    const user = await this.userModel.findById(order.user).exec();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+  
     if (order.isConfirmed) {
+    
       throw new BadRequestException('Order is already confirmed');
     }
+ const payload = {
+        "receiverAccountId": user.headerAccountId,
+        "amount": order.totalPrice,
+      }
+      const response = await axios.post('http://localhost:3002/api/token/Unlock' , payload);
 
+
+      const payload1 = 
+      {
+          "senderAccountId": user.headerAccountId,
+          "senderPrivateKey": user.privateKey,
+          "receiverAccountId": "0.0.5820764",
+          "amount": order.totalPrice,
+        }
+      const response1 = await axios.post('http://localhost:3002/api/token/transfer' , payload1);
     // Decrease stock for each ordered product
     for (const orderedProduct of order.products) {
       const product = await this.productModel.findById(orderedProduct.productId).exec();
@@ -175,7 +208,18 @@ export class OrderService {
   }
 
   async findOrdersByUserId(userId: string): Promise<Order[]> {
-    return this.orderModel.find({ user: userId }).exec();
+    this.logger.log(`Finding orders for user ID: ${userId}`);
+    
+    // Ensure the userId is treated as an ObjectId if necessary
+    const orders = await this.orderModel.find({ user: new Types.ObjectId(userId) }).exec();
+    
+    if (orders.length === 0) {
+      this.logger.warn(`No orders found for user ID: ${userId}`);
+    } else {
+      this.logger.log(`Found ${orders.length} orders for user ID: ${userId}`);
+    }
+    
+    return orders;
   }
 
   async findOrdersByShopId(shopId: string): Promise<Order[]> {

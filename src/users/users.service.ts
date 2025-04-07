@@ -22,6 +22,7 @@ import { Express } from 'express';
 import { Multer } from 'multer';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { TwoFactorAuthDto, TwoFactorEnableDto } from './dtos/TwoFactorAuthDto.dto';
+import axios from 'axios';
 type LoginResult = { 
     accessToken: string, 
     refreshToken: string,
@@ -118,20 +119,48 @@ export class UsersService {
     }
 
     async create(createUserDto: CreateUserDto): Promise<User> {
-        const { email, password, ...rest } = createUserDto;
+      const { email, password, ...rest } = createUserDto;
 
-        const userExists = await this.userModel.findOne({ email });
-        if (userExists) {
-            throw new BadRequestException('User already exists');
-        }
+      const userExists = await this.userModel.findOne({ email });
+      if (userExists) {
+          throw new BadRequestException('User already exists');
+      }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Create Hedera wallet using Axios
+      try {
+          // Call the Hedera API to create a wallet
+          //faresIP 192.168.55.48:3002
+          const response = await axios.post('http://localhost:3002/api/wallet/create');
+          const wallet = response.data;
+          
+          // Validate wallet response has the required fields
+          if (!wallet.accountId || !wallet.privateKey) {
+              throw new Error('Invalid wallet response format');
+          }
+          
+          // Create user with Hedera wallet details
+          const user = new this.userModel({
+              ...rest,
+              email,
+              role: 'Client',
+              password: hashedPassword,
+              __t: 'Client',
+              headerAccountId: wallet.accountId,
+              privateKey: wallet.privateKey
+          });
 
-        const user = new this.userModel({ ...rest, email, role: 'Client', password: hashedPassword, __t: 'Client' });
+          this.logger.log(`Creating user ${email} with Hedera account ${wallet.accountId}`);
+          return user.save();
+      } catch (error) {
+          this.logger.error(`Failed to create user with Hedera wallet: ${error.message}`);
+          throw new InternalServerErrorException(
+              'Failed to create user with Hedera wallet. Please try again later.'
+          );
+      }
+  }
 
-        this.logger.log(`Creating user with email: ${email} and role: Client`);
-        return user.save();
-    }
 
     async findbyrole(role: Role): Promise<User[]> {
         return this.userModel.find({ role }).exec();
