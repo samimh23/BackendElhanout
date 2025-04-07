@@ -643,4 +643,24 @@ export class MarketService {
     
     return this.normalMarketModel.findByIdAndDelete(id).exec();
   }
+
+  async getMarketsByOwner(ownerId: string): Promise<NormalMarket[]> {
+    this.logger.log(`Fetching markets for owner with ID: ${ownerId}`);
+    
+    // Verify valid ObjectId to prevent DB errors
+    if (!Types.ObjectId.isValid(ownerId)) {
+      throw new BadRequestException('Invalid owner ID format');
+    }
+    
+    // Convert string ID to ObjectId for MongoDB query
+    const ownerObjectId = new Types.ObjectId(ownerId);
+    
+    // Query the database for markets with the specified owner
+    const markets = await this.normalMarketModel.find({ 
+      owner: ownerObjectId 
+    }).exec();
+    
+    this.logger.log(`Found ${markets.length} markets for owner ${ownerId}`);
+    return markets;
+  }
 }

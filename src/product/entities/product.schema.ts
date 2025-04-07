@@ -19,7 +19,6 @@ export class Product extends Document {
   @Prop({ type: String, enum: ProductCategory, required: true })
   category: ProductCategory;
 
-
   @Prop({ required: true })
   stock: number;
 
@@ -32,8 +31,8 @@ export class Product extends Document {
   @Prop({ default: true })
   isActive: boolean;
 
-  @Prop({ type: [String] })
-  images: string[];
+  @Prop({ type: String }) // Changed from array to single string
+  image: string;          // Changed from images to image (singular)
 
   @Prop({ type: Number, default: 0 })
   ratings: number;

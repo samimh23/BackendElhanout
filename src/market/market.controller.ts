@@ -68,11 +68,37 @@ export class MarketController {
     }
   }
 
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles(Role.MERCHANT)
+  @Post(':id/share')
+  async shareFractions(
+    @Param('id') id: string,
+    @Body() shareData: ShareFractionDto,
+    @Request() req
+  ) {
+    // Extract userId from the authenticated request
+    const userId = req.user.userId;
+    
+    // Use normalMarketService instead of marketService
+    return this.normalMarketService.shareFractionalNFT(id, shareData, userId);
+  }
+
   @Get()
   async findAll(): Promise<NormalMarket[]> {
     return this.normalMarketService.findAll();
   }
 
+  // IMPORTANT: This specific route must come BEFORE the generic :id route
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Get('my-markets')
+  async getMyMarkets(@Request() req): Promise<NormalMarket[]> {
+    // Get user ID from the JWT payload
+    // The log shows your auth guard is setting userId correctly in other routes
+    const userId = req.user._id || req.user.id;
+    
+    console.log(`Fetching markets for authenticated user ID: ${userId}`);
+    return this.normalMarketService.getMarketsByOwner(userId);
+  }
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<NormalMarket> {
     const market = await this.normalMarketService.findOne(id);
@@ -130,20 +156,5 @@ export class MarketController {
     }
     
     return this.normalMarketService.remove(id, userId);
-  }
-
-  @UseGuards(AuthenticationGuard, RolesGuard)
-  @Roles(Role.MERCHANT)
-  @Post(':id/share')
-  async shareFractions(
-    @Param('id') id: string,
-    @Body() shareData: ShareFractionDto,
-    @Request() req
-  ) {
-    // Extract userId from the authenticated request
-    const userId = req.user.userId;
-    
-    // Use normalMarketService instead of marketService
-    return this.normalMarketService.shareFractionalNFT(id, shareData, userId);
   }
 }
