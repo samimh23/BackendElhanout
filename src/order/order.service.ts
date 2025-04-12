@@ -20,7 +20,7 @@ export class OrderService {
   ) {}
 
   async createAnOrder(createOrderDto: CreateOrderDto): Promise<Order> {
-    const { normalMarket, products, user, dateOrder, isConfirmed ,totalPrice } = createOrderDto;
+    const { normalMarket, products, user, dateOrder, isConfirmed ,totalPrice,orderStatus } = createOrderDto;
    const usr = await this.userModel.findById(user).exec();
     if (!usr) {
       throw new BadRequestException('User not found');
@@ -71,6 +71,7 @@ export class OrderService {
       })),
       dateOrder: dateOrder ? new Date(dateOrder) : new Date(),
       isConfirmed: isConfirmed ?? false,
+      orderStatus: orderStatus,
       totalPrice: totalPrice,
     });
   
@@ -224,5 +225,9 @@ export class OrderService {
 
   async findOrdersByShopId(shopId: string): Promise<Order[]> {
     return this.orderModel.find({ shop: shopId }).exec();
+  }
+
+  async findOrderById(id: string): Promise<Order> {
+    return this.orderModel.findById(id).exec();
   }
 }
