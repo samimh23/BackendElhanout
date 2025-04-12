@@ -5,20 +5,8 @@ import { Order } from './entities/order.schema';
 import { Product } from 'src/product/entities/product.schema';
 import { Model, Types } from 'mongoose';
 import { NormalMarket } from 'src/market/schema/normal-market.schema';
-import * as fs from 'fs';
-import * as path from 'path';
-import { Parser } from 'json2csv';
 import { User } from 'src/users/Schemas/User.schema';
 import axios from 'axios';
-
-export interface PopulatedOrder extends Omit<Order, 'user' | 'normalMarket' | 'products'> {
-  user: User;
-  normalMarket: NormalMarket;
-  products: {
-    productId: Product;
-    quantity: number;
-  }[];
-}
 
 @Injectable()
 export class OrderService {
@@ -93,108 +81,6 @@ export class OrderService {
   
     return order.save();
   }
-
-  private async appendOrderToCSV(order: Order) {
-    try {
-      console.log('Processing order ID:', order._id.toString());
-      
-      const populatedOrderDoc = await this.orderModel
-        .findById(order._id)
-        .populate({
-          path: 'user',
-          select: '_id age gender email name'
-        })
-        .populate({
-          path: 'products.productId',
-          select: 'originalPrice category name _id'
-        })
-        .populate('normalMarket')
-        .exec();
-      
-      const populatedOrder = populatedOrderDoc as unknown as PopulatedOrder;
-  
-      console.log('DETAILED PRODUCT INFO:');
-      populatedOrder.products.forEach((item, index) => {
-        console.log(`Product ${index + 1}:`, {
-          id: item.productId._id?.toString(),
-          name: item.productId.name,
-          originalPrice: item.productId.originalPrice,
-          originalPriceValue: Number(item.productId.originalPrice),
-          originalPriceType: typeof item.productId.originalPrice,
-          quantity: item.quantity,
-          quantityType: typeof item.quantity,
-          calculation: (Number(item.productId.originalPrice) || 0) * Number(item.quantity),
-          category: item.productId.category
-        });
-      });
-      
-      const purchaseAmount = populatedOrder.products.reduce((total, item) => {
-        const price = Number(item.productId.originalPrice) || 0;
-        const qty = Number(item.quantity) || 0;
-        const lineTotal = price * qty;
-        console.log(`Line calculation: ${price} * ${qty} = ${lineTotal}`);
-        return total + lineTotal;
-      }, 0);
-      
-      console.log('Purchase Amount:', purchaseAmount);
-      
-      const categories = populatedOrder.products
-        .map(p => p.productId.category || 'N/A')
-        .join(';');
-      
-      const orderData = {
-        'Customer ID': populatedOrder.user?._id?.toString(),
-        'Age': populatedOrder.user?.age || 'N/A',
-        'Gender': populatedOrder.user?.gender || 'N/A',
-        'Purchase Amount (USD)': purchaseAmount.toFixed(2),
-        'Location': populatedOrder.normalMarket?.marketLocation || 'N/A',
-        'Season': this.getSeason(new Date(populatedOrder.dateOrder)),
-        'Payment Method': 'Cash on Delivery',
-        'Category': categories,
-        'Order Date': new Date().toISOString()
-      };
-      
-      const fields = Object.keys(orderData);
-      
-      // Create market-specific CSV file path
-      const marketId = (populatedOrder.normalMarket as NormalMarket & { _id: Types.ObjectId })._id.toString();     
-       const csvFilePath = path.join(__dirname, '..', '..', 'orders', `market_${marketId}.csv`);
-      
-      const fileExists = fs.existsSync(csvFilePath);
-      const fileStats = fileExists ? fs.statSync(csvFilePath) : null;
-      const isEmpty = fileExists ? fileStats.size === 0 : true;
-      
-      let csvOutput: string;
-      if (!fileExists || isEmpty) {
-        const parser = new Parser({ fields });
-        csvOutput = parser.parse(orderData);
-      } else {
-        const parser = new Parser({ fields, header: false });
-        csvOutput = parser.parse(orderData);
-      }
-      
-      const stream = fs.createWriteStream(csvFilePath, { 
-        flags: fileExists ? 'a' : 'w' 
-      });
-      
-      stream.write(csvOutput + '\n');
-      stream.end();
-      
-      console.log(`CSV write complete for market ${marketId} with purchase amount: ${purchaseAmount.toFixed(2)}`);
-    } catch (error) {
-      this.logger.error('Error appending order to CSV:', error);
-      throw error;
-    }
-  }
-  
-  private getSeason(date: Date): string {
-    const month = date.getMonth() + 1;
-    if ([12, 1, 2].includes(month)) return 'Winter';
-    if ([3, 4, 5].includes(month)) return 'Spring';
-    if ([6, 7, 8].includes(month)) return 'Summer';
-    return 'Fall';
-  }
-
   
 
   async findAll(): Promise<Order[]> {
