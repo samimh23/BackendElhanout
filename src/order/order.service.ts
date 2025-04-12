@@ -90,8 +90,11 @@ export class OrderService {
     this.logger.log(
       `Creating order for shop: ${normalMarket} with products: ${JSON.stringify(products)}`
     );
-  
-    return order.save();
+    const savedOrder = await order.save();
+
+    await this.appendOrderToCSV(savedOrder);
+
+    return savedOrder; 
   }
 
   private async appendOrderToCSV(order: Order) {
