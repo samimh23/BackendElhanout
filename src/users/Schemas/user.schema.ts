@@ -34,7 +34,15 @@ export class User extends Document {
 
     @Prop({ default: 'local' })
     provider: string;
+    
+    @Prop({ default: false })
+    headerAccountId: string;
 
+    @Prop({ type: [{ type: Types.ObjectId, ref: 'NormalMarket' }] })
+    markets?: Types.ObjectId[];
+
+    @Prop({ default: false })
+    privateKey: string;
 
     @Prop({ required: true, enum: Role })
     role: Role;
@@ -48,8 +56,6 @@ export class User extends Document {
     @Prop({ default: false })
     isTwoFactorEnabled: boolean;
 
-    @Prop({ type: [{ type: Types.ObjectId, ref: 'NormalMarket' }] })
-    markets?: Types.ObjectId[];
     
     @Prop()
     twoFactorSecret?: string;

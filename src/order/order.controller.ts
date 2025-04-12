@@ -33,4 +33,14 @@ export class OrderController {
   ) {
     return this.orderService.updateOrder(orderId, updateOrderDto);
   }
+
+  @Get(':userId')
+  async findOrdersByUserId(@Param('userId') userId: string) {
+    return await this.orderService.findOrdersByUserId(userId);
+  }
+
+  @Get('findOrder/:id')
+  async findOrderById(@Param('id') id: string) {
+    return await this.orderService.findOrderById(id);
+  }
 }

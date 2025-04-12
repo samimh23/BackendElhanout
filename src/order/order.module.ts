@@ -25,7 +25,7 @@ import { User, UserSchema } from 'src/users/Schemas/User.schema';
       {
         name: User.name,
         schema: UserSchema,
-      }, 
+      },
     ]),
   ],
   controllers: [OrderController],

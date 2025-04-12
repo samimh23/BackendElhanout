@@ -17,7 +17,6 @@ export class CreateUserDto {
     @IsEmail()
     email: string;
 
-
     @IsNotEmpty()
     @IsArray()
     @ArrayNotEmpty()

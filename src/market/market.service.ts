@@ -348,8 +348,13 @@ export class MarketService {
         
         // Try to find this Hedera account in our user collection
         const userWithAccount = await this.userModel.findOne({ accounthederaid: recipientHederaId });
+<<<<<<< HEAD
         if (userWithAccount?.secretkey) {
           recipientPrivateKey = userWithAccount.secretkey;
+=======
+        if (userWithAccount?.privateKey) {
+          recipientPrivateKey = userWithAccount.privateKey;
+>>>>>>> origin/oussema
           this.logger.log(`Found matching user with this Hedera account in database`);
         } else {
           // Try to find this Hedera account in our market collection
@@ -371,9 +376,15 @@ export class MarketService {
         
         if (recipientType === 'user') {
           const user = await this.userModel.findById(shareData.recipientAddress);
+<<<<<<< HEAD
           if (user?.accounthederaid && user?.secretkey) {
             recipientHederaId = user.accounthederaid;
             recipientPrivateKey = user.secretkey;
+=======
+          if (user?.headerAccountId && user?.privateKey) {
+            recipientHederaId = user.headerAccountId;
+            recipientPrivateKey = user.privateKey;
+>>>>>>> origin/oussema
             this.logger.log(`Found user recipient with Hedera account: ${recipientHederaId}`);
           } else {
             throw new BadRequestException(`User ${shareData.recipientAddress} doesn't have a Hedera account configured`);
@@ -393,9 +404,15 @@ export class MarketService {
         else {
           // Try user first
           const user = await this.userModel.findById(shareData.recipientAddress);
+<<<<<<< HEAD
           if (user?.accounthederaid && user?.secretkey) {
             recipientHederaId = user.accounthederaid;
             recipientPrivateKey = user.secretkey;
+=======
+          if (user?.headerAccountId && user?.privateKey) {
+            recipientHederaId = user.headerAccountId;
+            recipientPrivateKey = user.privateKey;
+>>>>>>> origin/oussema
             this.logger.log(`Found user recipient with Hedera account: ${recipientHederaId}`);
           } else {
             // Try market next
