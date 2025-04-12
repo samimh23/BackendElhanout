@@ -1,6 +1,13 @@
 import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
 import { Role } from "./Role.enum";
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
+
+
+
+export enum Gender {
+    MALE = 'male',
+    FEMALE = 'female',
+}
 
 @Schema({ discriminatorKey: 'role', timestamps: true })
 export class User extends Document {
@@ -32,14 +39,28 @@ export class User extends Document {
     @Prop({ required: true, enum: Role })
     role: Role;
 
+    @Prop()
+    age?: number;
+
+    @Prop({ enum: Gender })
+    gender?: Gender;
+
     @Prop({ default: false })
     isTwoFactorEnabled: boolean;
+
+    @Prop({ type: [{ type: Types.ObjectId, ref: 'NormalMarket' }] })
+    markets?: Types.ObjectId[];
     
     @Prop()
     twoFactorSecret?: string;
     
     @Prop({ default: false })
     isTwoFactorVerified: boolean;
+
+    @Prop()
+    accounthederaid: string;
+    @Prop()
+    secretkey:string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -139,9 +139,7 @@ async uploadProfilePicture(@UploadedFile() file: Multer.File, @Request() req) {
   if (!file) {
     throw new BadRequestException('No file uploaded');
   }
-  console.log('Upload request received');
-  console.log('req.user:', req.user);
-  console.log('userId:', req.user.userId);
+ 
   // Get the user ID from the authenticated user
   const userId = req.user.id;
  

@@ -1,5 +1,12 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsArray, ArrayNotEmpty } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsArray, ArrayNotEmpty, IsInt, Min, Max } from 'class-validator';
 import { Role } from '../Schemas/Role.enum';
+
+
+export enum Gender {
+    MALE = 'male',
+    FEMALE = 'female',
+}
+
 
 export class CreateUserDto {
     @IsNotEmpty()
@@ -10,6 +17,7 @@ export class CreateUserDto {
     @IsEmail()
     email: string;
 
+
     @IsNotEmpty()
     @IsArray()
     @ArrayNotEmpty()
@@ -19,8 +27,18 @@ export class CreateUserDto {
     @IsString()
     password: string;
 
-    @IsOptional()
+    @IsOptional()v
     cin?: number;
+
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(120)
+    age?: number;
+
+    @IsOptional()
+    @IsEnum(Gender, { message: 'Gender must be either male or female' })
+    gender?: Gender;
 
     @IsOptional()
     @IsString()

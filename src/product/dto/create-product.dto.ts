@@ -9,7 +9,7 @@ export class CreateProductDto {
 
     @IsNumber()
     originalPrice: number;
-
+n
     @IsString()
     category: string;
 
