@@ -37,6 +37,20 @@ export class Product extends Document {
   @Prop({ type: Number, default: 0 })
   ratings: number;
 
+  @Prop({
+    type: Number,
+    required: false,
+    default: 0,
+  })
+  ratingsAverage: number;
+  @Prop({
+    type: Number,
+    required: false,
+    default: 0,
+  })
+  ratingsQuantity: number;
+  
+
   @Prop({ default: false })
   isDiscounted: boolean;
 

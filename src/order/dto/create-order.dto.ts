@@ -42,6 +42,7 @@ export class CreateOrderDto {
   @IsOptional()
   @IsBoolean()
   isConfirmed?: boolean;
+  
   @IsOptional()
   @IsEnum(['isProcessing', 'Delivering', 'isReceived'])
   orderStatus?: string;

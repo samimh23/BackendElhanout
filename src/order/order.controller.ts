@@ -43,4 +43,10 @@ export class OrderController {
   async findOrderById(@Param('id') id: string) {
     return await this.orderService.findOrderById(id);
   }
+
+  @Patch('updateStatus/:id')
+  async updateOrderStatus(
+    @Param('id') id: string){
+    return await this.orderService.sendPackage(id);
+    }
 }

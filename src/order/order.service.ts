@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Order } from './entities/order.schema';
+import { Order, OrderStatus } from './entities/order.schema';
 import { Product } from 'src/product/entities/product.schema';
 import { Model, Types } from 'mongoose';
 import { NormalMarket } from 'src/market/schema/normal-market.schema';
@@ -251,8 +251,28 @@ export class OrderService {
       product.stock -= orderedProduct.quantity;
       await product.save();
     }
-
+    order.orderStatus = OrderStatus.ISRECIVED
     order.isConfirmed = true;
+    return order.save();
+  }
+
+  async sendPackage(id: string): Promise<Order> {
+    const order = await this.orderModel.findById(id).exec();
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+    const user = await this.userModel.findById(order.user).exec();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+  
+    if (order.isConfirmed) {
+    
+      throw new BadRequestException('Order is already confirmed');
+    }
+ 
+    
+    order.orderStatus = OrderStatus.DELIVERING
     return order.save();
   }
 
