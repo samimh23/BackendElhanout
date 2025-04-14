@@ -132,7 +132,7 @@ export class UsersService {
       try {
           // Call the Hedera API to create a wallet
           //faresIP 192.168.55.48:3002
-          const response = await axios.post('http://localhost:3002/api/wallet/create');
+          const response = await axios.post('https://hserv.onrender.com/api/wallet/create');
           const wallet = response.data;
           
           // Validate wallet response has the required fields

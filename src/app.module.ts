@@ -24,6 +24,7 @@ import { FarmModule } from './farm/farm.module';
 import { TwoFactorAuthModule } from './users/two-factor-auth.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ReservationModule } from './reservation/reservation.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -72,7 +73,8 @@ import { ReservationModule } from './reservation/reservation.module';
     FarmSaleModule,
     TwoFactorAuthModule,
     ReviewsModule,
-    ReservationModule
+    ReservationModule,
+    AnalyticsModule
   ],
   controllers: [AppController],
   providers: [AppService,MailService],

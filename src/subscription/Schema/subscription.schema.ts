@@ -9,7 +9,7 @@ export class Subscription extends Document {
     @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true })
     userId: string;
 
-    @Prop({ required: true, enum: [Role.WHOLESALER, Role.Farmer], default: Role.Farmer })
+    @Prop({ required: true, enum: [Role.MERCHANT, Role.Farmer], default: Role.Farmer })
     roleSubscribed: Role;
 
     @Prop({ required: true, enum: Object.values(SubscriptionStatus), default: SubscriptionStatus.ACTIVE })
