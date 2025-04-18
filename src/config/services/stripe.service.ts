@@ -14,7 +14,8 @@ export class StripeService {
 
   async createPaymentIntent(amount: number, metadata?: any): Promise<Stripe.PaymentIntent> {
     return this.stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+      amount: Math.round(amount * 100),
+      //lconfirmation_method: 'automatic', 
       currency: 'usd',
       metadata: metadata || {},
     });
