@@ -23,16 +23,26 @@ import { Multer } from 'multer';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { TwoFactorAuthDto, TwoFactorEnableDto } from './dtos/TwoFactorAuthDto.dto';
 import axios from 'axios';
-type LoginResult = { 
-    accessToken: string, 
-    refreshToken: string,
-    user?: {
-      id: string,
-      email: string,
-      role: string,
-      name?: string
+type LoginResult = {
+    accessToken: string;
+    refreshToken: string;
+    user: { // Ensure this user object structure matches your Flutter User model
+      id: string;
+      email: string;
+      role: string; // Or Role enum if preferred
+      name?: string;
+      lastName?: string; // Add if needed
+      headerAccountId?: string; // ADDED
+      privateKey?: string;      // ADDED
+      isTwoFactorEnabled?: boolean; // ADDED
+      // Add other fields like profilepicture, phonenumbers etc. if needed by frontend immediately after login
+      profilepicture?: string;
+      phonenumbers?: any[]; // Match the type in your User schema
+      cin?: number;
+      age?: number;
     }
   };
+
 @Injectable()
 export class UsersService {
     private readonly logger = new Logger(UsersService.name);
@@ -194,10 +204,25 @@ export class UsersService {
                 requireTwoFactor: true
             };
         }
+        const userResponseObject = {
+            id: userExist._id.toString(),
+            email: userExist.email,
+            role: userExist.role, // Ensure this matches the type expected by Flutter
+            name: userExist.name,
+            // Add if exists in schema
+            headerAccountId: userExist.headerAccountId, // ADDED
+            privateKey: userExist.privateKey,          // ADDED - Be cautious about sending private key
+            isTwoFactorEnabled: userExist.isTwoFactorEnabled, // ADDED
+            profilepicture: userExist.profilepicture, // Add other relevant fields
+            phonenumbers: userExist.phonenumbers,
+            cin: userExist.cin,
+            age: userExist.age
+        };
+
         
         // If 2FA is not enabled, generate tokens as usual
         const tokens = await this.generateUserToken(userExist._id.toString());
-        return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+        return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken,user: userResponseObject };
     }
     async refreshToken(refreshToken: string) {
         // Find token by hashed value - this needs to be fixed
