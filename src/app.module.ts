@@ -25,6 +25,7 @@ import { TwoFactorAuthModule } from './users/two-factor-auth.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { HederaModule } from './hedera/hedera.module';
 
 @Module({
   imports: [
@@ -74,7 +75,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
     TwoFactorAuthModule,
     ReviewsModule,
     ReservationModule,
-    AnalyticsModule
+    AnalyticsModule,
+    HederaModule
   ],
   controllers: [AppController],
   providers: [AppService,MailService],
