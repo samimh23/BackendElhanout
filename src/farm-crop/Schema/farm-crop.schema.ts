@@ -26,8 +26,7 @@ export const ExpenseSchema = SchemaFactory.createForClass(Expense);
 
 @Schema({ timestamps: true })
 export class FarmCrop {
-  @Prop({ type: Types.ObjectId, ref: 'Farm', required: false, index: true })
-  farmId: Types.ObjectId;
+
 
   @Prop({ required: true })
   productName: string;

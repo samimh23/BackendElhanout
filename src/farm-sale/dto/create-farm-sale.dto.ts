@@ -8,6 +8,10 @@ export class CreateSaleDto {
   farmCropId: string | Types.ObjectId;  
 
   @IsNotEmpty()
+  @IsString()
+  farmMarketId: string | Types.ObjectId;  
+
+  @IsNotEmpty()
   @IsNumber()
   @Min(0)
   quantity: number;

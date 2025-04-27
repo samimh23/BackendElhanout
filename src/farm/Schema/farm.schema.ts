@@ -16,10 +16,16 @@ export class FarmMarket extends Markets {
   farmEmail?: string;
 
   @Prop()
-  marketImage?: string;
+  farmDescription?: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'FarmCrop' }], default: [] })
-  crops: Types.ObjectId[];
+  @Prop()
+  rate?: string;
+
+  @Prop()
+  marketImage?: number;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Fproduct' }], default: [] })
+  Sale: Types.ObjectId[];
 }
 
 export type FarmMarketDocument = FarmMarket & Document;
