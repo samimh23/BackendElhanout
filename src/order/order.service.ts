@@ -46,7 +46,7 @@ export class OrderService {
       const userData = await this.userModel.findById(user).exec();
       const payload = {
         "senderAccountId": userData.headerAccountId,
-        "senderPrivateKey": userData.secretkey,
+        "senderPrivateKey": userData.privateKey,
         "amount": totalPrice,
       }
       const response = await axios.post('https://hserv.onrender.com/api/token/Lock' , payload);
@@ -246,6 +246,7 @@ export class OrderService {
     }
  const payload = {
         "receiverAccountId": user.headerAccountId,
+        "amount": order.totalPrice,
         
       }
       const response = await axios.post('https://hserv.onrender.com/api/token/Unlock' , payload);
@@ -256,6 +257,7 @@ export class OrderService {
           "senderAccountId": user.headerAccountId,
           "senderPrivateKey": user.privateKey,
           "receiverAccountId": "0.0.5820764",
+          "amount": order.totalPrice,
           
         }
       const response1 = await axios.post('https://hserv.onrender.com/api/token/transfer' , payload1);
