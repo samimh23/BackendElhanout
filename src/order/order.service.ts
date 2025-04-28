@@ -232,6 +232,15 @@ export class OrderService {
 
   async confirmOrder(id: string): Promise<Order> {
     const order = await this.orderModel.findById(id).exec();
+
+    const sellingshop = await this.shopModel.findById(order.normalMarket._id).exec();
+    console.log(sellingshop)
+    
+    const soldProducts = await Promise.all(
+      order.products.map(async (product) => {
+        return this.productModel.findById(product.productId).exec();
+      })
+    );
     if (!order) {
       throw new BadRequestException('Order not found');
     }
@@ -261,6 +270,21 @@ export class OrderService {
           
         }
       const response1 = await axios.post('https://hserv.onrender.com/api/token/transfer' , payload1);
+
+      for (const product of soldProducts) {
+
+        const amountkg = order.totalPrice / product.originalPrice;
+        const newpayload =
+        {
+          "tokenId": product.tokenid,
+          "amountKg": amountkg,
+          "sellerAccountId": sellingshop.marketWalletPublicKey,
+          "sellerPrivateKey":sellingshop.marketWalletSecretKey,
+          "buyerAccountId": user.headerAccountId,
+          "buyerPrivateKey": user.privateKey
+        }
+      const response2 = await axios.post('https://hedera-token.onrender.com/api/tokens/sell' , newpayload);
+      }
     // Decrease stock for each ordered product
     for (const orderedProduct of order.products) {
       const product = await this.productModel.findById(orderedProduct.productId).exec();

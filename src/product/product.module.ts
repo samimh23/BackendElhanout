@@ -5,10 +5,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Product, ProductSchema } from './entities/product.schema';
 import { User, UserSchema } from 'src/users/Schemas/User.schema';
 import { NormalMarket, NormalMarketSchema } from 'src/market/schema/normal-market.schema';
+import { HttpModule } from '@nestjs/axios';
 
 
 @Module({
   imports: [
+    HttpModule,
     MongooseModule.forFeature([
       {
         name: Product.name,

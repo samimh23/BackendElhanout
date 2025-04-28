@@ -8,45 +8,110 @@ import { User } from 'src/users/Schemas/User.schema';
 import { NormalMarket } from 'src/market/schema/normal-market.schema';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class ProductService {
+  logger: any;
+  hederaApiUrl: any;
   constructor(
     // Inject the Product model
     @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(NormalMarket.name) private shopModel: Model<NormalMarket>,
-  ) {}
-  
-  async create(createProductDto: CreateProductDto): Promise<Product> {
-    console.log('Creating product with shop ID:', createProductDto.shop);
+    private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
+
+  )
+ {
+  // Get the Hedera API URL from config
+  this.hederaApiUrl = this.configService.get<string>('hederaApiUrl');
+}
+
+private getCurrentTimestamp(): string {
+  const now = new Date();
+  return now.toISOString().replace('T', ' ').substring(0, 19);
+}
+
+async create(createProductDto: CreateProductDto): Promise<Product> {
+  try {
+    const currentTimestamp = this.getCurrentTimestamp();
     
     const shop = await this.shopModel.findById(createProductDto.shop);
-
     if (!shop) {
-      throw new Error('Shop not found');
-    } 
+      throw new BadRequestException('Shop not found');
+    }
 
+    // Create product in MongoDB
     const newProduct = new this.productModel({
       ...createProductDto,
       shop: shop._id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
-    
-    // Save the product first to get its ID
+
+    // Save the product to get an ID
     const savedProduct = await newProduct.save();
-    console.log('Product saved with ID:', savedProduct._id);
+    
     
     // Update the shop's products array with the new product ID
     await this.shopModel.findByIdAndUpdate(
       shop._id,
       { $push: { products: savedProduct._id } },
-      { new: true } // Return the updated document
+      { new: true }
     );
     
-    console.log('Updated shop products list');
     
-    return savedProduct;
+    // Check if we should create a Hedera token (if stock > 0)
+    if (savedProduct.stock > 0) {
+      try {
+        console.log('Creating Hedera token for product...');
+        
+        // Call your existing Hedera API to create a token WITH TIMEOUT
+        const createTokenResponse = await firstValueFrom(
+          this.httpService.post(`${this.hederaApiUrl}/api/tokens/create`, {
+            productName: savedProduct.name,
+            initialStockKg: savedProduct.stock,
+            creatorAccountId: shop.marketWalletPublicKey,
+            creatorPrivateKey: shop.marketWalletSecretKey,
+            metadata: {
+              productId: savedProduct._id.toString(),
+              shopId: shop._id.toString(),
+              category: savedProduct.category,
+              description: savedProduct.description,
+              createdAt: currentTimestamp,
+            }
+          }, 
+          {
+            timeout: 10000000 // Add 30-second timeout
+          })
+        );
+        
+        // Get the token data from the response
+        const tokenData = createTokenResponse.data;
+        
+        if (tokenData && tokenData.success && tokenData.tokenId) {
+          // Update the product with the token ID
+          await this.productModel.findByIdAndUpdate(
+            savedProduct._id,
+            { tokenid: tokenData.tokenId }
+          );
+          
+        } else {
+        }
+      } catch (error) {
+        // Don't throw - we still created the product successfully
+      }
+    }
+    
+    // Return the updated product with token ID
+    return this.productModel.findById(savedProduct._id).exec();
+    
+  } catch (error) {
   }
+}
 
   async findAll(): Promise<Product[]> {
     return await this.productModel.find().exec();
