@@ -12,6 +12,7 @@ export class Product extends Document {
 
   @Prop({ required: false })
   price: number;
+  
   @Prop({
     type: Number,
     required: false,

@@ -22,57 +22,54 @@ export class ReviewService {
     @InjectModel(Product.name) private readonly productModule: Model<Product>,
   ) {}
   async create(createReviewDto: CreateReviewDto, user_id: string) {
-    const review = await this.reviewModule.findOne({
+    // Check if the user has already reviewed this product
+    let review = await this.reviewModule.findOne({
       user: user_id,
       product: createReviewDto.product,
     });
-
+  
     if (review) {
-      throw new HttpException(
-        'This User already Created Review On this Product',
-        400,
-      );
+      // Update the existing review
+      review = await this.reviewModule.findByIdAndUpdate(
+        review._id,
+        { ...createReviewDto },
+        { new: true }
+      ).populate('product user', 'name email title description imageCover');
+    } else {
+      // Create a new review
+      review = await (
+        await this.reviewModule.create({
+          ...createReviewDto,
+          user: user_id,
+        })
+      ).populate('product user', 'name email title description imageCover');
     }
-
-    const newReview = await (
-      await this.reviewModule.create({
-        ...createReviewDto,
-        user: user_id,
-      })
-    ).populate('product user', 'name email title description imageCover');
-
-    // Rating in product module
-
+  
+    // Recalculate the ratings for the product
     const reviewsOnSingleProduct = await this.reviewModule
       .find({
         product: createReviewDto.product,
       })
       .select('rating');
     const ratingsQuantity = reviewsOnSingleProduct.length;
+  
     if (ratingsQuantity > 0) {
-      let totalRatings: number = 0;
-      for (let i = 0; i < reviewsOnSingleProduct.length; i++) {
-        totalRatings += reviewsOnSingleProduct[i].rating;
-      }
+      const totalRatings = reviewsOnSingleProduct.reduce(
+        (sum, r) => sum + r.rating,
+        0
+      );
       const ratingsAverage = totalRatings / ratingsQuantity;
-
+  
       await this.productModule.findByIdAndUpdate(createReviewDto.product, {
         ratingsAverage,
         ratingsQuantity,
       });
     }
-    /*
-    Iphone 15      [ {rating: 5 hane}, {rating: 4 mahmoud18957321@gmail.com}]
-    
-    ratingsAverage= 4.5, (5+4) / 2 = 
-    
-ratingsQuantity=2
-
-*/
+  
     return {
       status: 200,
-      message: 'Review Created successfully',
-      data: newReview,
+      message: 'Review created or updated successfully',
+      data: review,
     };
   }
 

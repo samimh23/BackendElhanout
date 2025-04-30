@@ -1,11 +1,11 @@
 
+(global as any).crypto = require('crypto');
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import * as express from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
-import { AuthenticationGuard } from './config/guards/authentication.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

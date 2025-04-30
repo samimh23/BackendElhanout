@@ -9,7 +9,7 @@ export class CreateReservationDto {
   @IsInt()
   @Min(1)
   @IsNotEmpty()
-  stock: number;
+  quantity: number;
 
   @IsString()
   @IsNotEmpty()
