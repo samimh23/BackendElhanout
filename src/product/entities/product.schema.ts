@@ -59,6 +59,9 @@ export class Product extends Document {
   
   @Prop({ type: Types.ObjectId, ref: 'NormalMarket', required: true })
   shop: Types.ObjectId;
+
+  @Prop()
+  tokenid: string; // Token ID for the product
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

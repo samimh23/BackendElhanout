@@ -26,6 +26,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuctionModule } from './auction/auction.module';
+import { HederaModule } from './hedera/hedera.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { AuctionModule } from './auction/auction.module';
     ReservationModule,
     AnalyticsModule,
     AuctionModule
+    HederaModule
   ],
   controllers: [AppController],
   providers: [AppService,MailService],

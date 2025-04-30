@@ -22,6 +22,8 @@ export class PaymentsController {
     @Request() req,
     @Body() dto: CreatePaymentIntentDto,
   ) {
+    console.log('Received DTO:', dto);
+    console.log('Type of subscriptionType:', typeof dto.subscriptionType);
     return this.paymentsService.createCheckoutSession(req.user.id, dto);
   } 
 
@@ -30,6 +32,13 @@ export class PaymentsController {
   
   async checkSessionStatus(@Query('session_id') sessionId: string) {
     return this.paymentsService.checkSessionStatus(sessionId);
+  }
+
+  @Post('verify')
+  async verifyPayment(
+    @Body() verifyPaymentDto: VerifyPaymentDto
+  ) {
+    return this.paymentsService.verifyPayment(verifyPaymentDto);
   }
 
   
@@ -41,5 +50,6 @@ export class PaymentsController {
   ) {
     return this.paymentsService.createPaymentIntent(user.id, createPaymentIntentDto);
   }
+  
   
 }

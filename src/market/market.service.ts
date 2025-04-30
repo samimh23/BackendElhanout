@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger, ForbiddenException } from "@nestjs/common";
 import { HttpService } from "@nestjs/axios";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
@@ -662,5 +662,70 @@ export class MarketService {
     
     this.logger.log(`Found ${markets.length} markets for owner ${ownerId}`);
     return markets;
+  }
+
+  
+  
+  async transferTokensToOwner(marketId: string, amount: number, requestUserId: string): Promise<any> {
+    try {
+      // Validate the market ID
+      if (!Types.ObjectId.isValid(marketId)) {
+        throw new NotFoundException(`Invalid market ID format: ${marketId}`);
+      }
+      
+      // Find the market
+      const market = await this.normalMarketModel.findById(marketId);
+      if (!market) {
+        throw new NotFoundException(`Market with ID ${marketId} not found`);
+      }
+      
+      // Check if the requester is authorized to make the transfer
+      // Convert to string for comparison to ensure types match
+      const marketOwnerId = market.owner.toString();
+      if (marketOwnerId !== requestUserId) {
+        throw new ForbiddenException('You are not authorized to transfer tokens from this market');
+      }
+      
+      // Get the owner details
+      const owner = await this.userModel.findById(market.owner);
+      if (!owner) {
+        throw new NotFoundException(`Owner account for market ${marketId} not found`);
+      }
+
+      // Ensure the owner has Hedera credentials
+      if (!owner.headerAccountId || !owner.privateKey) {
+        throw new ForbiddenException('Owner does not have valid Hedera credentials');
+      }
+
+      // Call the token transfer API
+      const response = await firstValueFrom(
+        this.httpService.post('https://hserv.onrender.com/api/token/transfer', {
+          senderAccountId: market.marketWalletPublicKey,
+          senderPrivateKey: market.marketWalletSecretKey,
+          receiverAccountId: owner.headerAccountId,
+          amount: amount,
+        })
+      );
+
+      // Return success response with transaction details
+      return {
+        success: true,
+        message: `Successfully transferred ${amount} HC from market to owner`,
+        marketId: marketId,
+        ownerId: owner._id,
+        ownerHederaId: owner.headerAccountId,
+        transactionDetails: response.data,
+      };
+    } catch (error) {
+      // Log the error for debugging but return a cleaner message
+      console.error('Error transferring tokens:', error);
+      
+      // Return appropriate error response
+      return {
+        success: false,
+        message: 'Failed to transfer tokens',
+        error: error.message,
+      };
+    }
   }
 }
