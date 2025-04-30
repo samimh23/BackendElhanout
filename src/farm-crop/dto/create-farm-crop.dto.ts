@@ -26,7 +26,7 @@ export class CreateExpenseDto extends ExpenseDto {}
 
 export class CreateFarmCropDto {
  // @ApiProperty({ description: 'ID of the farm this crop belongs to' })
-  @IsMongoId()
+  
   farmId: string;
 
 //  @ApiProperty({ description: 'Name of the crop product' })

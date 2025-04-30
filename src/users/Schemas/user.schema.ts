@@ -41,6 +41,9 @@ export class User extends Document {
     @Prop({ type: [{ type: Types.ObjectId, ref: 'NormalMarket' }] })
     markets?: Types.ObjectId[];
 
+    @Prop({ type: [{ type: Types.ObjectId, ref: 'FarmMarket' }] })
+    farms?: Types.ObjectId[];
+
     @Prop({ default: false })
     privateKey: string;
 
