@@ -1,30 +1,66 @@
-import { MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
-import {Server, Socket} from 'socket.io';
+import {
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+  ConnectedSocket,
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { AuctionService } from './auction.service';
+import { forwardRef, Inject } from '@nestjs/common';
 
-@WebSocketGateway(3008,{})
-export class AuctionGateway implements OnGatewayConnection,OnGatewayDisconnect{
-  handleDisconnect(client: Socket) {
+@WebSocketGateway(3008, { cors: true })
+export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  @WebSocketServer() server: Server;
 
-    this.server.emit('Bidder left',{
-      message:` ${client.id} has left the auction`,
+  constructor(
+    @Inject(forwardRef(() => AuctionService))
+    private readonly auctionService: AuctionService
+  ) {}
+
+  async handleConnection(client: Socket) {
+    client.emit('connected', { message: `Welcome, ${client.id}` });
+    client.broadcast.emit('bidderJoined', {
+      message: `${client.id} has joined the auction`,
     });
   }
-  handleConnection(client: Socket) {
-client.broadcast.emit('new Bidder',{
-  message:` ${client.id} has joined the auction`,
-});
 
+  handleDisconnect(client: Socket) {
+    this.server.emit('bidderLeft', {
+      message: `${client.id} has left the auction`,
+    });
   }
-@WebSocketServer() server: Server
 
+  // Client joins a specific auction room
+  @SubscribeMessage('joinAuction')
+  handleJoinAuction(
+    @ConnectedSocket() client: Socket,
+    @MessageBody('auctionId') auctionId: string,
+  ) {
+    client.join(auctionId);
+    client.emit('joinedAuction', { auctionId });
+  }
 
+  // Client places a bid
   @SubscribeMessage('bidPlaced')
-  palceNewBit(client:Socket,data: any) {
+  async handleBidPlaced(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { auctionId: string; bidderId: string; bidAmount: number },
+  ) {
+    try {
+      const updatedAuction = await this.auctionService.placeBid(data.auctionId, {
+        bidderId: data.bidderId,
+        bidAmount: data.bidAmount,
+        bidTime: new Date(),
+      });
 
-
-    console.log( data);
-    client.emit('Placed on', data);
-
-    this.server.emit('Placed on', data);
+      // Notify all in the auction room
+      this.server.to(data.auctionId).emit('auctionUpdated', updatedAuction);
+      client.emit('bidSuccess', updatedAuction);
+    } catch (error) {
+      client.emit('bidError', { error: error.message });
+    }
   }
-} 
+}

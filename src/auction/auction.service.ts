@@ -19,10 +19,7 @@ export class AuctionService {
 
   /** Lazily resolve the gateway to broadcast events */
   private get gateway() {
-    // 'AuctionGateway' token is the class name by default
-    return this.moduleRef.get('AuctionGateway', { strict: false }) as {
-      server: import('socket.io').Server;
-    };
+    return this.moduleRef.get(AuctionGateway, { strict: false });
   }
 
   async createAuction(dto: CreateAuctionDto): Promise<Auction> {
