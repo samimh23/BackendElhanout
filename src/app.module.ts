@@ -77,7 +77,7 @@ import { HederaModule } from './hedera/hedera.module';
     ReviewsModule,
     ReservationModule,
     AnalyticsModule,
-    AuctionModule
+    AuctionModule,
     HederaModule
   ],
   controllers: [AppController],

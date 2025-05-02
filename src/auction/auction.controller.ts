@@ -28,7 +28,7 @@ export class AuctionController {
     return this.auctionService.placeBid(auctionId, dto);
   }
 
-  @Patch(':id/status')
+  @Patch('status/:id')
   updateStatus(@Param('id') auctionId: string, @Body('status') status: Auction['status']): Promise<Auction> {
     return this.auctionService.updateAuctionStatus(auctionId, status);
   }
@@ -39,7 +39,11 @@ export class AuctionController {
   }
 
   @Get('bidders/:id')
-  getBidders(@Param('id') auctionId: string): Promise<{ bidderIds: string[] }> {
+  getBidders(@Param('id') auctionId: string) {
     return this.auctionService.getBiddersByAuctionId(auctionId);
+  }
+  @Get('farmer/:id')
+  getByfarmerId(@Param('id') farmerId: string): Promise<Auction[]> {
+    return this.auctionService.getAuctionsByfarmerId(farmerId);
   }
 }
