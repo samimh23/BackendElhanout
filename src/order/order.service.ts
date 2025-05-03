@@ -330,7 +330,7 @@ export class OrderService {
       throw new BadRequestException('Shop not found');
     }
 
-    const shopProductIds = shopData.products?.map((p) => p._id?.toString());
+    const shopProductIds = shopData.products?.map((p) => p.id?.toString());
     updateOrderDto.products.forEach((p) => {
       if (!shopProductIds.includes(p.productId)) {
         throw new BadRequestException(`Product ${p.productId} does not belong to this shop.`);

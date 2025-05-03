@@ -23,14 +23,19 @@ export class CreateFarmMarketDto {
   @IsOptional()
   farmDescription: string;
 
-
-  @IsMongoId()
-  owner: string;  // Assuming owner is a MongoDB ObjectId
+  @IsString()
+  owner: string;  
 
   @IsArray()
-  @IsMongoId({ each: true })
+  @IsOptional()
   sales: string[];
 
   @IsString()
-  marketType: string;  // This should be 'farm' for this market type
+  @IsOptional()
+  rate?: string;
+
+  @IsArray()
+  @IsOptional()
+  crops: string[];
+ 
 }

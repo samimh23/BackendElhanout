@@ -20,6 +20,11 @@ export class FarmController {
     return this.farmMarketService.findAll();
   }
 
+  @Get('farmer/:owner')
+  async findAllByFarmerId(@Param('owner') owner: string): Promise<FarmMarket[]> {
+    return this.farmMarketService.findByFarmerId(owner);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<FarmMarket> {
     return this.farmMarketService.findOne(id);

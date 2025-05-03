@@ -1,8 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { Markets, MarketsDocument } from 'src/Common/Schema/market.schema';
 @Schema()
-export class FarmMarket extends Markets {
+export class FarmMarket {
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true }) 
+  owner: Types.ObjectId;
+
   @Prop({ required: true })
   farmName: string;
 
@@ -22,10 +25,13 @@ export class FarmMarket extends Markets {
   rate?: string;
 
   @Prop()
-  marketImage?: number;
+  farmImage?: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Fproduct' }], default: [] })
-  Sale: Types.ObjectId[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Fsale' }], default: [] })
+  sales: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Fcrop' }], default: [] })
+  crops: Types.ObjectId[];
 }
 
 export type FarmMarketDocument = FarmMarket & Document;

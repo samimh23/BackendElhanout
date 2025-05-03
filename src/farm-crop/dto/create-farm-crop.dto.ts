@@ -2,6 +2,7 @@ import { IsString, IsDate, IsOptional, IsNumber, IsEnum, IsArray, ValidateNested
 import { Type } from 'class-transformer';
 //import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AuditStatus } from '../Schema/farm-crop.schema';
+import { Types } from 'mongoose';
 
 export class ExpenseDto {
  // @ApiProperty({ description: 'Unique identifier for the expense' })
@@ -27,15 +28,16 @@ export class CreateExpenseDto extends ExpenseDto {}
 export class CreateFarmCropDto {
 
 
-//  @ApiProperty({ description: 'Name of the crop product' })
+  @IsString()
+  farmMarketId: string | Types.ObjectId;  
+
+
   @IsString()
   productName: string;
 
-//  @ApiProperty({ description: 'Type of the crop' })
   @IsString()
   type: string;
 
-//  @ApiProperty({ description: 'Date when the crop was implanted' })
   @IsDate()
   @Type(() => Date)
   implantDate: Date;
