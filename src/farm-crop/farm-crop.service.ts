@@ -18,6 +18,10 @@ export class FarmCropService {
     return this.farmCropModel.find().exec();
   }
 
+  async findByFarmId(farmMarketId: string): Promise<FarmCrop[]> {
+    return this.farmCropModel.find({ farmMarketId }).exec();
+  }
+
   async findOne(id: string): Promise<FarmCrop> {
     const farmCrop = await this.farmCropModel.findById(id).exec();
     if (!farmCrop) {
@@ -33,6 +37,12 @@ export class FarmCropService {
     }
     return updatedFarmCrop;
   }
+
+
+  async findByFarmId(farmMarketId: string): Promise<FarmCrop[]> {
+    return this.farmCropModel.find({ farmMarketId }).exec();
+  }
+
 
   async delete(id: string): Promise<FarmCrop> {
     const deletedFarmCrop = await this.farmCropModel.findByIdAndDelete(id).exec();
