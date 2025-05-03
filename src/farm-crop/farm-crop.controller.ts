@@ -19,6 +19,11 @@ export class FarmCropController {
     return this.farmCropService.findAll();
   }
 
+  @Get('farm/:farmMarketId')
+  findByFarmId(@Param('farmMarketId') farmMarketId: string): Promise<FarmCrop[]> {
+    return this.farmCropService.findByFarmId(farmMarketId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string): Promise<FarmCrop> {
     return this.farmCropService.findOne(id);
