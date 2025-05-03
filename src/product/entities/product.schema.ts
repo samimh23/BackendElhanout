@@ -12,6 +12,7 @@ export class Product extends Document {
 
   @Prop({ required: false })
   price: number;
+  
   @Prop({
     type: Number,
     required: false,
@@ -48,6 +49,7 @@ export class Product extends Document {
 
   @Prop({ type: Number, default: 0 })
   ratings: number;
+  
 
   @Prop({ default: false })
   isDiscounted: boolean;
@@ -57,6 +59,9 @@ export class Product extends Document {
   
   @Prop({ type: Types.ObjectId, ref: 'NormalMarket', required: true })
   shop: Types.ObjectId;
+
+  @Prop()
+  tokenid: string; // Token ID for the product
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

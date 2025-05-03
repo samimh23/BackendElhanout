@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Order, OrderStatus } from './entities/order.schema';
@@ -11,6 +11,10 @@ import { Parser } from 'json2csv';
 import { User } from 'src/users/Schemas/User.schema';
 import axios from 'axios';
 import { AnalyticsService } from 'src/analytics/analytics.service';
+import { MarketOrderCropDto } from './dto/market-order_crop.dto';
+import { FarmCrop } from 'src/farm-crop/Schema/farm-crop.schema';
+import { Sale } from 'src/farm-sale/Schema/farm-sale.schema';
+import { ProductCategory } from 'src/product/entities/category.enum';
 
 
 export interface PopulatedOrder extends Omit<Order, 'user' | 'normalMarket' | 'products'> {
@@ -32,7 +36,8 @@ export class OrderService {
     @InjectModel(NormalMarket.name) private shopModel: Model<NormalMarket>,
     @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(User.name) private userModel: Model<User>,
-    
+    @InjectModel(FarmCrop.name) private farmCropModel: Model<FarmCrop>,
+    @InjectModel(Sale.name) private saleModel: Model<Sale>,
   ) {
     
   }
@@ -49,8 +54,9 @@ export class OrderService {
         "senderPrivateKey": userData.privateKey,
         "amount": totalPrice,
       }
+      console.log('Payload for Lock:', payload);
       const response = await axios.post('https://hserv.onrender.com/api/token/Lock' , payload);
-
+console.log('Lock response:', response.data);
       if (userData) {
         console.log('User age and gender:', {
           userId: userData._id.toString(),
@@ -232,6 +238,15 @@ export class OrderService {
 
   async confirmOrder(id: string): Promise<Order> {
     const order = await this.orderModel.findById(id).exec();
+
+    const sellingshop = await this.shopModel.findById(order.normalMarket._id).exec();
+    console.log(sellingshop)
+    
+    const soldProducts = await Promise.all(
+      order.products.map(async (product) => {
+        return this.productModel.findById(product.productId).exec();
+      })
+    );
     if (!order) {
       throw new BadRequestException('Order not found');
     }
@@ -261,6 +276,21 @@ export class OrderService {
           
         }
       const response1 = await axios.post('https://hserv.onrender.com/api/token/transfer' , payload1);
+
+      for (const product of soldProducts) {
+
+        const amountkg = order.totalPrice / product.originalPrice;
+        const newpayload =
+        {
+          "tokenId": product.tokenid,
+          "amountKg": amountkg,
+          "sellerAccountId": sellingshop.marketWalletPublicKey,
+          "sellerPrivateKey":sellingshop.marketWalletSecretKey,
+          "buyerAccountId": user.headerAccountId,
+          "buyerPrivateKey": user.privateKey
+        }
+      const response2 = await axios.post('https://hedera-token.onrender.com/api/tokens/sell' , newpayload);
+      }
     // Decrease stock for each ordered product
     for (const orderedProduct of order.products) {
       const product = await this.productModel.findById(orderedProduct.productId).exec();
@@ -403,4 +433,46 @@ export class OrderService {
      
     
   }
+
+  async orderCropFromFarm(marketOrderCropDto: MarketOrderCropDto): Promise<Product> {
+    const { saleId, marketId, quantity, pricePerUnit } = marketOrderCropDto;
+
+    // Check if market exists
+    const market = await this.shopModel.findById(marketId).exec();
+    if (!market) {
+      throw new NotFoundException(`Market with ID ${marketId} not found`);
+    }
+    
+    // Check if farm crop exists
+    const sale = await this.saleModel.findById(saleId).exec();
+    if (!sale) {
+      throw new NotFoundException(`Farm crop with ID ${saleId} not found`);
+    }
+    const farmCrop = await this.farmCropModel.findById(sale.farmCropId).exec();
+    if (!farmCrop) {
+      throw new NotFoundException(`Farm crop with ID ${sale.farmCropId} not found`);
+    }
+
+    // Check if crop has enough quantity
+    if (!sale.quantity || sale.quantity < quantity) {
+      throw new BadRequestException(`Insufficient sale quantity. Available: ${sale.quantity}`);
+    }
+    
+    // Transform crop to product and add to market
+    const newProduct = new this.productModel({
+      name: farmCrop.productName,
+      description: `Product derived from ${farmCrop.productName} crop`,
+      originalPrice: pricePerUnit || 15, // Add markup for retail price
+      price: pricePerUnit ? pricePerUnit * 1.2 : 18, // 20% markup for final price
+      category: farmCrop.type,
+      stock: quantity,
+      image: farmCrop.picture || 'default-product.jpg',
+      shop: new Types.ObjectId(market._id),
+      isActive: true,
+    });
+
+    return newProduct.save();
+  }
+
+  
 }

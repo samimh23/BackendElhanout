@@ -34,7 +34,7 @@ export class ReviewController {
   //  @docs   User logged Can Only update Their Review
   //  @Route  PATCH /api/v1/review
   //  @access Private [User]
-  @Patch(':id')
+  @Patch('update/:id')
   @UseGuards(AuthenticationGuard)
 update(
   @Param('id') id: string,

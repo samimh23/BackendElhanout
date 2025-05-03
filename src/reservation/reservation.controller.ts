@@ -18,7 +18,6 @@ export class ReservationController {
   constructor(private readonly reservationService: ReservationService) {}
 
   @Post('add/:userId')
-  @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createReservationDto: CreateReservationDto,
     @Param('userId') userId: string

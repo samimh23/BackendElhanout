@@ -12,7 +12,9 @@ export class FarmService {
 
   // Create a new FarmMarket
   async create(createFarmMarketDto: CreateFarmMarketDto): Promise<FarmMarket> {
-    const newMarket = new this.farmMarketModel(createFarmMarketDto);
+    const newMarket = new this.farmMarketModel({
+      ...createFarmMarketDto,
+      marketType: 'farm'});
     return newMarket.save();
   }
 

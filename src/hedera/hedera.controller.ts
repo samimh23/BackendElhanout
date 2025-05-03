@@ -12,6 +12,10 @@ export class HederaController {
   async getBalance(@Request() req) {
     return this.hederaService.getBalance(req.user.id);
   }
+  @Get('balance/bymarket')
+  async getBalancebymarket(marketid: string) {
+    return this.hederaService.getBalance(marketid);
+  }
 
   @Post('transfer')
   async transferTokens(

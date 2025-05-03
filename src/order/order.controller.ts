@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { MarketOrderCropDto } from './dto/market-order_crop.dto';
 
 @Controller('order')
 export class OrderController {
@@ -55,5 +56,11 @@ export class OrderController {
    
       return await this.orderService.findOrdersByShopId(shopId);
     
+  }
+
+  
+  @Post('cropsOrder')
+  async orderCropFromFarm(@Body() marketOrderCropDto: MarketOrderCropDto) {
+    return this.orderService.orderCropFromFarm(marketOrderCropDto);
   }
 }

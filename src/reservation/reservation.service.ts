@@ -25,7 +25,7 @@ export class ReservationService {
     }
 
     // Check if product is available in sufficient stock
-    if (product.stock < createReservationDto.stock) {
+    if (product.stock < createReservationDto.quantity) {
       throw new BadRequestException(`Only ${product.stock} items available for reservation`);
     }
 

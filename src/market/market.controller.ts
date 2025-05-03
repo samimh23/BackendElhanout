@@ -157,4 +157,16 @@ export class MarketController {
     
     return this.normalMarketService.remove(id, userId);
   }
+
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles(Role.MERCHANT)
+  @Post(':id/transfer-tokens')  
+  async transferTokensToOwner(
+    @Param('id') marketId: string,
+    @Body() body: { amount: number },
+    @Request() req
+  ) {
+    const userId = req.user.userId;
+    return this.normalMarketService.transferTokensToOwner(marketId, body.amount, userId);
+  } 
 }
