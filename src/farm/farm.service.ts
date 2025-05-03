@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import { FarmMarket } from './schema/farm.schema';
 import { CreateFarmMarketDto } from './dto/create-farm.dto';
 
@@ -23,6 +23,10 @@ export class FarmService {
     return this.farmMarketModel.find().exec();
   }
 
+  async findByFarmerId(owner: string): Promise<FarmMarket[]> {
+    return this.farmMarketModel.find({ owner }).exec();
+  }
+
   // Find one FarmMarket by id
   async findOne(id: string): Promise<FarmMarket> {
     return this.farmMarketModel.findById(id).exec();
@@ -30,7 +34,21 @@ export class FarmService {
 
   // Update a FarmMarket
   async update(id: string, updateFarmMarketDto: CreateFarmMarketDto): Promise<FarmMarket> {
-    return this.farmMarketModel.findByIdAndUpdate(id, updateFarmMarketDto, { new: true }).exec();
+    if (!id || !isValidObjectId(id)) {
+      throw new BadRequestException('Invalid farm market ID');
+    }
+    
+    const updatedMarket = await this.farmMarketModel.findByIdAndUpdate(
+      id, 
+      updateFarmMarketDto, 
+      { new: true }
+    ).exec();
+    
+    if (!updatedMarket) {
+      throw new BadRequestException(`Farm market with ID ${id} not found`);
+    }
+    
+    return updatedMarket;
   }
 
   // Delete a FarmMarket
