@@ -159,8 +159,7 @@ export class MarketController {
   }
 
   @UseGuards(AuthenticationGuard, RolesGuard)
-  @Roles(Role.MERCHANT)
-  @Post(':id/transfer-tokens')  
+  @Roles(Role.MERCHANT)  @Post(':id/transfer-tokens')  
   async transferTokensToOwner(
     @Param('id') marketId: string,
     @Body() body: { amount: number },

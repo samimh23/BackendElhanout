@@ -8,7 +8,7 @@ import { UpdateMarketDto } from "./dto/update-market.dto";
 import { ShareFractionDto } from "./dto/ShareFraction.dto";
 import { User } from "src/users/Schemas/User.schema";
 import { firstValueFrom } from 'rxjs';
-import { AxiosResponse } from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import * as dotenv from 'dotenv';
 
 // Import Hedera SDK components needed for account creation
@@ -668,19 +668,16 @@ export class MarketService {
   
   async transferTokensToOwner(marketId: string, amount: number, requestUserId: string): Promise<any> {
     try {
-      // Validate the market ID
       if (!Types.ObjectId.isValid(marketId)) {
         throw new NotFoundException(`Invalid market ID format: ${marketId}`);
       }
       
-      // Find the market
       const market = await this.normalMarketModel.findById(marketId);
       if (!market) {
         throw new NotFoundException(`Market with ID ${marketId} not found`);
       }
       
-      // Check if the requester is authorized to make the transfer
-      // Convert to string for comparison to ensure types match
+      
       const marketOwnerId = market.owner.toString();
       if (marketOwnerId !== requestUserId) {
         throw new ForbiddenException('You are not authorized to transfer tokens from this market');
@@ -692,20 +689,20 @@ export class MarketService {
         throw new NotFoundException(`Owner account for market ${marketId} not found`);
       }
 
-      // Ensure the owner has Hedera credentials
       if (!owner.headerAccountId || !owner.privateKey) {
         throw new ForbiddenException('Owner does not have valid Hedera credentials');
       }
 
       // Call the token transfer API
-      const response = await firstValueFrom(
-        this.httpService.post('https://hserv.onrender.com/api/token/transfer', {
+      try {
+        const payload = {
           senderAccountId: market.marketWalletPublicKey,
           senderPrivateKey: market.marketWalletSecretKey,
           receiverAccountId: owner.headerAccountId,
           amount: amount,
-        })
-      );
+        };
+        const response = await axios.post('https://hserv.onrender.com/api/token/transfer', payload);
+
 
       // Return success response with transaction details
       return {
@@ -727,5 +724,11 @@ export class MarketService {
         error: error.message,
       };
     }
+    
   }
+  catch (error) {
+    console.error('Error in transferTokensToOwner:', error);
+    throw new BadRequestException(`Failed to transfer tokens: ${error.message}`);
+  }
+}
 }
