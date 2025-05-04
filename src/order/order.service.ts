@@ -271,7 +271,7 @@ console.log('Lock response:', response.data);
       {
           "senderAccountId": user.headerAccountId,
           "senderPrivateKey": user.privateKey,
-          "receiverAccountId": "0.0.5820764",
+          "receiverAccountId": sellingshop.marketWalletPublicKey,
           "amount": order.totalPrice,
           
         }

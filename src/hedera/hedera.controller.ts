@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { HederaService } from './hedera.service';
 import { AuthenticationGuard } from 'src/config/guards/authentication.guard';
 import { LockUnlockTokensDto, TraceTransactionsDto, TransferTokensDto } from './hedera.dto';
@@ -11,6 +11,10 @@ export class HederaController {
   @Get('balance')
   async getBalance(@Request() req) {
     return this.hederaService.getBalance(req.user.id);
+  }
+  @Get('balance/bymarket')
+  async getBalanceofmarket(@Query('marketid') marketid: string) {
+    return this.hederaService.getMBalance(marketid);
   }
 
   @Post('transfer')

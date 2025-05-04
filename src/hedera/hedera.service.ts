@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from '../users/Schemas/User.schema';
 import axios from 'axios';
+import { NormalMarket } from 'src/market/schema/normal-market.schema';
 
 @Injectable()
 export class HederaService {
@@ -11,9 +12,12 @@ export class HederaService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(NormalMarket.name) private NormalMarket: Model<NormalMarket>
   ) {}
 
   // Get user's Hedera credentials from database
+  
+
   private async getUserCredentials(userId: string): Promise<{ accountId: string, privateKey: string }> {
     const user = await this.userModel.findById(userId);
     
@@ -29,6 +33,71 @@ export class HederaService {
       accountId: user.headerAccountId,
       privateKey: user.privateKey
     };
+  }
+
+  async getMBalance(marketId: string) {
+    try {
+      const market = await this.NormalMarket.findById(marketId);
+      
+      if (!market) {
+        throw new NotFoundException(`Market with ID ${marketId} not found`);
+      }
+      
+      if (!market.marketWalletPublicKey || !market.marketWalletSecretKey) {
+        this.logger.warn(`Market ${marketId} does not have Hedera credentials`);
+        return { balance: 0, accountId: null, timestamp: new Date().toISOString() };
+      }
+      
+      const accountId = market.marketWalletPublicKey;
+      const privateKey = market.marketWalletSecretKey;
+      
+      this.logger.log(`Fetching balance for market account: ${accountId}`);
+      
+      const response = await axios.post(
+        `${this.baseUrl}/api/token/balance`,
+        { accountId, privateKey },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      
+      // Extract and filter for HC token specifically
+      let hcTokenBalance = 0;
+      
+      if (response.data) {
+        if (Array.isArray(response.data.tokenBalances)) {
+          // Find HC token in tokenBalances array
+          const hcToken = response.data.tokenBalances.find(
+            (token) => token.tokenId === '0.0.5883473'
+          );
+          
+          if (hcToken) {
+            hcTokenBalance = parseInt(hcToken.balance) || 0;
+            this.logger.log(`Found HC token balance: ${hcTokenBalance} for market: ${marketId}`);
+          }
+        } else if (typeof response.data === 'object' && response.data.balance) {
+          // Assume this is the HC token balance if specific token data not available
+          hcTokenBalance = parseInt(response.data.balance) || 0;
+          this.logger.log(`Using direct balance value: ${hcTokenBalance} for market: ${marketId}`);
+        } else if (typeof response.data === 'number' || typeof response.data === 'string') {
+          // Direct value response
+          hcTokenBalance = parseInt(response.data.toString()) || 0;
+        }
+      }
+      
+      // Return a simplified response with just the HC token balance
+      return { 
+        balance: hcTokenBalance,
+        accountId: accountId,
+        timestamp: new Date().toISOString() 
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get market balance for ${marketId}: ${error.message}`);
+      
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      
+      throw new InternalServerErrorException('Failed to fetch Hedera balance');
+    }
   }
 
   // Get user's balance

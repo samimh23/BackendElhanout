@@ -5,8 +5,7 @@ import { Document, Types } from 'mongoose';
 export class Sale {
   @Prop({ type: Types.ObjectId, ref: 'FarmCrop', required: false, index: true })
   farmCropId: Types.ObjectId;
-
-
+  
   @Prop({ required: true, type: Number })
   quantity: number;
 
