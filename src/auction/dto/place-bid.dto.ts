@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDate, IsNotEmpty, IsNumber } from 'class-validator';
 
 export class PlaceBidDto {
   @IsNotEmpty()
@@ -7,4 +8,9 @@ export class PlaceBidDto {
   @IsNumber()
   @IsNotEmpty()
   bidAmount: number;
+
+  @IsDate()
+    @Type(() => Date) // Converts string to Date
+    @IsNotEmpty()
+    bidTime: Date;
 }

@@ -1,55 +1,75 @@
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, OnGatewayConnection, OnGatewayDisconnect, MessageBody, ConnectedSocket } from '@nestjs/websockets';
+import {
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+  ConnectedSocket,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Injectable, UsePipes, ValidationPipe } from '@nestjs/common';
 import { AuctionService } from './auction.service';
-import { PlaceBidDto } from './dto/place-bid.dto';
+import { forwardRef, Inject } from '@nestjs/common';
 
-@WebSocketGateway({ cors: { origin: '*' } })
-@Injectable()
+@WebSocketGateway(3008, { cors: true })
 export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private readonly auctionService: AuctionService) {}
-
   @WebSocketServer() server: Server;
 
-  
-  handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`)
+  constructor(
+    @Inject(forwardRef(() => AuctionService))
+    private readonly auctionService: AuctionService
+  ) {}
+
+  async handleConnection(client: Socket) {
+    console.log(`Client connected: ${client.id}`);
+    client.emit('connected', { message: `Welcome, ${client.id}` });
+    client.broadcast.emit('bidderJoined', {
+      message: `${client.id} has joined the auction`,
+    });
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`)
+    this.server.emit('bidderLeft', {
+      message: `${client.id} has left the auction`,
+    });
   }
 
+  // Client joins a specific auction room
   @SubscribeMessage('joinAuction')
-async onJoin(
+async handleJoinAuction(
   @ConnectedSocket() client: Socket,
-  @MessageBody() auctionId: string
+  @MessageBody('auctionId') auctionId: string,
 ) {
+  console.log(`Client ${client.id} joined auction: ${auctionId}`);
   client.join(auctionId);
+
+  // Fetch the current auction with bids
   const auction = await this.auctionService.getAuctionById(auctionId);
-  console.log(`Client ${client.id} joined auction ${auctionId}`);
-  // this is the line that sends you the current state:
-  client.emit('auctionState', auction);
+
+  // Emit both joined event and current auction
+  client.emit('joinedAuction', { auctionId, auction });
 }
 
-
-  @SubscribeMessage('leaveAuction')
-  onLeave(@ConnectedSocket() client: Socket, @MessageBody() auctionId: string) {
-    client.leave(auctionId);
-  }
-
-  @SubscribeMessage('placeBid')
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  async onBid(
+  // Client places a bid
+  @SubscribeMessage('bidPlaced')
+  async handleBidPlaced(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { auctionId: string; bid: PlaceBidDto },
+    @MessageBody() data: { auctionId: string; bidderId: string; bidAmount: number },
   ) {
     try {
-      const updated = await this.auctionService.placeBid(payload.auctionId, payload.bid);
-      this.server.to(payload.auctionId).emit('auctionUpdated', updated);
-    } catch (e) {
-      client.emit('error', { message: e.message });
+      const updatedAuction = await this.auctionService.placeBid(data.auctionId, {
+        bidderId: data.bidderId,
+        bidAmount: data.bidAmount,
+        bidTime: new Date(),
+      });
+
+      // Notify all in the auction room
+      this.server.to(data.auctionId).emit('auctionUpdated', updatedAuction);
+      client.emit('bidSuccess', updatedAuction);
+      console.log(`Bid placed successfully: ${data.bidAmount} by ${data.bidderId}`);
+    } catch (error) {
+      console.error(`Error placing bid: ${error.message}`);
+      client.emit('bidError', { error: error.message });
     }
   }
-  
-} 
+}

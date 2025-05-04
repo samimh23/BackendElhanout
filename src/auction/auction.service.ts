@@ -6,6 +6,9 @@ import { CreateAuctionDto } from './dto/create-auction.dto';
 import { PlaceBidDto } from './dto/place-bid.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Auction } from './schema/auction.schema';
+import { User } from 'src/users/Schemas/User.schema';
+import { AuctionGateway } from './auction.gateway';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuctionService {
@@ -16,10 +19,7 @@ export class AuctionService {
 
   /** Lazily resolve the gateway to broadcast events */
   private get gateway() {
-    // 'AuctionGateway' token is the class name by default
-    return this.moduleRef.get('AuctionGateway', { strict: false }) as {
-      server: import('socket.io').Server;
-    };
+    return this.moduleRef.get(AuctionGateway, { strict: false });
   }
 
   async createAuction(dto: CreateAuctionDto): Promise<Auction> {
@@ -83,14 +83,15 @@ export class AuctionService {
     return this.auctionModel.find({ 'bids.bidderId': bidderId }).exec();
   }
 
-  async getBiddersByAuctionId(id: string): Promise<{ bidderIds: string[] }> {
-    const auc = await this.getAuctionById(id);
-    const unique = [...new Set(auc.bids.map(b => b.bidderId.toString()))];
-    return { bidderIds: unique };
+  async getBiddersByAuctionId(id: string): Promise<any[]> {
+    const auction = await this.auctionModel.findById(id).lean().exec();
+    if (!auction) throw new BadRequestException('Auction not found');
+    // Return the full array of bid objects, not just bidderIds!
+    return auction.bids;
   }
 
-  /** Cron job that runs every minute to close expired auctions */
-  @Cron(CronExpression.EVERY_MINUTE)
+  /** Cron job that runs every sec to close expired auctions */
+  @Cron(CronExpression.EVERY_SECOND)
   async closeExpiredAuctions(): Promise<void> {
     const now = new Date();
     const expired = await this.auctionModel.find({
@@ -103,5 +104,9 @@ export class AuctionService {
       await auc.save();
       this.gateway.server.to(auc._id.toString()).emit('auctionEnded', { auctionId: auc._id });
     }
+  }
+
+  async getAuctionsByfarmerId(farmerId: string): Promise<Auction[]> {
+    return this.auctionModel.find({ 'farmerId': farmerId }).exec();
   }
 }

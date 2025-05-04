@@ -14,6 +14,6 @@ import { AuctionController } from './auction.controller';
   ],
   controllers: [AuctionController],
   providers: [AuctionService, AuctionGateway],
-  exports: [AuctionService],
+  exports: [AuctionService,AuctionGateway],
 })
 export class AuctionModule {}

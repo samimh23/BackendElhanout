@@ -10,7 +10,7 @@ export class MarketOrderCropDto {
 
   @IsNumber()
   @Min(1)
-  quantity: number;
+  quantity: number
 
   @IsOptional()
   @IsNumber()
