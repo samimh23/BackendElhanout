@@ -89,7 +89,7 @@ export class MarketController {
   }
 
   // IMPORTANT: This specific route must come BEFORE the generic :id route
-  @UseGuards(AuthenticationGuard, RolesGuard)
+  @UseGuards(AuthenticationGuard)
   @Get('my-markets')
   async getMyMarkets(@Request() req): Promise<NormalMarket[]> {
     // Get user ID from the JWT payload
@@ -157,4 +157,15 @@ export class MarketController {
     
     return this.normalMarketService.remove(id, userId);
   }
+
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles(Role.MERCHANT)  @Post(':id/transfer-tokens')  
+  async transferTokensToOwner(
+    @Param('id') marketId: string,
+    @Body() body: { amount: number },
+    @Request() req
+  ) {
+    const userId = req.user.userId;
+    return this.normalMarketService.transferTokensToOwner(marketId, body.amount, userId);
+  } 
 }

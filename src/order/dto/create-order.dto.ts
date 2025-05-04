@@ -10,6 +10,7 @@ import {
   Min,
   ValidateNested,
   IsMongoId,
+  IsEnum,
 } from 'class-validator';
 
 class ProductOrderDto {
@@ -41,4 +42,11 @@ export class CreateOrderDto {
   @IsOptional()
   @IsBoolean()
   isConfirmed?: boolean;
+  
+  @IsOptional()
+  @IsEnum(['isProcessing', 'Delivering', 'isReceived'])
+  orderStatus?: string;
+
+  @IsNumber()
+  totalPrice: number;
 }

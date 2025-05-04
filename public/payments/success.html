@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Payment Complete</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    .container {
+      background-color: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      padding: 40px;
+      text-align: center;
+      max-width: 90%;
+      width: 450px;
+      position: relative;
+      overflow: hidden;
+    }
+    .success-icon {
+      background-color: #4CAF50;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      position: relative;
+    }
+    .success-icon svg {
+      width: 40px;
+      height: 40px;
+      fill: white;
+    }
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      opacity: 0;
+      animation: confetti 3s ease-in-out forwards;
+    }
+    @keyframes confetti {
+      0% { transform: translateY(0) rotate(0); opacity: 1; }
+      100% { transform: translateY(100px) rotate(360deg); opacity: 0; }
+    }
+    h1 {
+      color: #30336b;
+      margin: 20px 0 10px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    p {
+      color: #555;
+      margin: 10px 0 25px;
+      font-size: 17px;
+      line-height: 1.6;
+    }
+    .highlight {
+      background-color: #F7F9FC;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+      border-left: 4px solid #4CAF50;
+    }
+    .status {
+      font-size: 16px;
+      margin: 25px 0;
+      color: #30336b;
+    }
+    .countdown {
+      font-size: 18px;
+      margin: 15px 0;
+      color: #30336b;
+      font-weight: 600;
+    }
+    .button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 15px 30px;
+      text-decoration: none;
+      border-radius: 50px;
+      display: inline-block;
+      margin-top: 10px;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.3s;
+      box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+      border: none;
+      cursor: pointer;
+    }
+    .button:hover {
+      background-color: #3e8e41;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+    }
+    .button:active {
+      transform: translateY(0);
+    }
+    .brand {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #888;
+    }
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4CAF50;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get the session_id from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      
+      if (!sessionId) {
+        document.getElementById('status').innerHTML = '<span style="color:red">Error: Session ID not found</span>';
+        return;
+      }
+
+      // Create confetti
+      createConfetti();
+
+      // Update initial status message
+      const statusElement = document.getElementById('status');
+      statusElement.innerHTML = '<div class="loader"></div> Activating your subscription...';
+
+      // Call the check-session endpoint to process the payment and get subscription details
+      fetch(`/payments/check-session?session_id=${sessionId}`)
+        .then(response => response.json())
+        .then(data => {
+          console.log('Subscription processed:', data);
+          
+          if (data.success) {
+            // Update status with subscription info
+            statusElement.innerHTML = 'Subscription activated successfully!';
+            
+            // If we have subscription data, display it
+            if (data.subscription) {
+              const subscriptionType = data.subscription.subscriptionType;
+              const expiresAt = new Date(data.subscription.expiresAt);
+              const expiryDate = expiresAt.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              });
+              
+              document.getElementById('highlight-text').textContent = 
+                `${subscriptionType} subscription activated until ${expiryDate}`;
+            }
+            
+            // Start countdown to app redirect
+            startCountdown();
+            
+            // Update deep link URL with subscription data
+            const returnButton = document.getElementById('return-to-app');
+            returnButton.href = `hanouty://payment-success?session_id=${sessionId}&status=success`;
+          } else {
+            // Handle error
+            statusElement.innerHTML = '<span style="color:red">Error processing subscription</span>';
+            
+            // Update deep link URL with error
+            const returnButton = document.getElementById('return-to-app');
+            returnButton.href = `hanouty://payment-success?session_id=${sessionId}&status=check_required`;
+            
+            // Still start countdown
+            startCountdown();
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          statusElement.innerHTML = '<span style="color:orange">Could not verify subscription status</span>';
+          
+          // Update deep link URL with error
+          const returnButton = document.getElementById('return-to-app');
+          returnButton.href = `hanouty://payment-success?session_id=${sessionId}&status=check_required`;
+          
+          // Still start countdown
+          startCountdown();
+        });
+      
+      function startCountdown() {
+        let secondsLeft = 5;
+        const countdownElement = document.getElementById('countdown');
+        countdownElement.style.display = 'block';
+        
+        function updateCountdown() {
+          countdownElement.textContent = `Returning to app in ${secondsLeft} seconds...`;
+          if (secondsLeft <= 0) {
+            returnToApp();
+          } else {
+            secondsLeft--;
+            setTimeout(updateCountdown, 1000);
+          }
+        }
+        
+        // Start countdown
+        updateCountdown();
+      }
+      
+      // Create confetti particles
+      function createConfetti() {
+        const container = document.querySelector('.container');
+        const colors = ['#FFC312', '#C4E538', '#12CBC4', '#FDA7DF', '#ED4C67', '#F79F1F', '#A3CB38', '#1289A7'];
+        
+        for (let i = 0; i < 50; i++) {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.left = Math.random() * 100 + '%';
+          confetti.style.top = -10 + 'px';
+          confetti.style.animationDelay = Math.random() * 3 + 's';
+          container.appendChild(confetti);
+        }
+      }
+      
+      function returnToApp() {
+        if (!sessionId) return;
+        
+        // Get the URL from button
+        const url = document.getElementById('return-to-app').href;
+        
+        // Simple redirect to app
+        window.location.href = url;
+        
+        // Show manual return option
+        document.getElementById('manual-return').style.display = 'block';
+      }
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="success-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+      </svg>
+    </div>
+    
+    <h1>Payment Successful!</h1>
+    <p>Thank you for your purchase. We're activating your subscription now.</p>
+    
+    <div class="highlight">
+      <div id="highlight-text">Your premium features are being unlocked...</div>
+    </div>
+    
+    <div id="status" class="status"></div>
+    
+    <div id="countdown" class="countdown" style="display: none;">Returning to app in 5 seconds...</div>
+    
+    <a id="return-to-app" href="#" class="button">
+      Return to App Now
+    </a>
+    
+    <div id="manual-return" style="display:none; margin-top:20px; color:#666; font-size:15px;">
+      If the app doesn't open automatically, please click the button above.
+    </div>
+    
+    <div class="brand">
+      Hanouty App
+    </div>
+  </div>
+</body>
+</html>

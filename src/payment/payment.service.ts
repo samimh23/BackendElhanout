@@ -13,7 +13,7 @@ export class PaymentsService {
   
   private subscriptionPrices = {
     [Role.Farmer]: 19.99,
-    [Role.WHOLESALER]: 29.99,
+    [Role.MERCHANT]: 29.99,
   };
 
   constructor(
@@ -83,7 +83,7 @@ export class PaymentsService {
           },
         ],
         mode: 'payment',
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payments/check-session?session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${process.env.FRONTEND_URL || 'http://192.168.251.19:3000'}/payments/success.html?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/subscription/cancel`,
         customer_email: user.email, // Pre-fill customer email
         client_reference_id: userId,

@@ -12,13 +12,25 @@ export class Product extends Document {
 
   @Prop({ required: false })
   price: number;
+  
+  @Prop({
+    type: Number,
+    required: false,
+    default: 0,
+  })
+  ratingsAverage: number;
+  @Prop({
+    type: Number,
+    required: false,
+    default: 0,
+  })
+  ratingsQuantity: number;
 
   @Prop({ required: true })
   originalPrice: number; 
 
   @Prop({ type: String, enum: ProductCategory, required: true })
   category: ProductCategory;
-
 
   @Prop({ required: true })
   stock: number;
@@ -32,11 +44,12 @@ export class Product extends Document {
   @Prop({ default: true })
   isActive: boolean;
 
-  @Prop({ type: [String] })
-  images: string[];
+  @Prop({ type: String }) // Changed from array to single string
+  image: string;          // Changed from images to image (singular)
 
   @Prop({ type: Number, default: 0 })
   ratings: number;
+  
 
   @Prop({ default: false })
   isDiscounted: boolean;
@@ -46,6 +59,9 @@ export class Product extends Document {
   
   @Prop({ type: Types.ObjectId, ref: 'NormalMarket', required: true })
   shop: Types.ObjectId;
+
+  @Prop()
+  tokenid: string; // Token ID for the product
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

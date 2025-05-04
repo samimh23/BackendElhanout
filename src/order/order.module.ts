@@ -6,6 +6,9 @@ import { Order, OrderSchema } from './entities/order.schema';
 import { Product, ProductSchema } from 'src/product/entities/product.schema';
 import { NormalMarket, NormalMarketSchema } from 'src/market/schema/normal-market.schema';
 import { User, UserSchema } from 'src/users/Schemas/User.schema';
+import { AnalyticsModule } from 'src/analytics/analytics.module';
+import { Sale, SaleSchema } from 'src/farm-sale/Schema/farm-sale.schema';
+import { FarmCrop, FarmCropSchema } from 'src/farm-crop/Schema/farm-crop.schema';
 
 @Module({
   imports: [
@@ -25,8 +28,18 @@ import { User, UserSchema } from 'src/users/Schemas/User.schema';
       {
         name: User.name,
         schema: UserSchema,
-      }, 
+      },
+      {
+        name: Sale.name,
+        schema: SaleSchema,
+      },
+      {
+        name: FarmCrop.name,
+        schema: FarmCropSchema,
+      },
     ]),
+    
+    AnalyticsModule,
   ],
   controllers: [OrderController],
   providers: [OrderService],

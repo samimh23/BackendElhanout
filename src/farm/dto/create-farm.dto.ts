@@ -2,30 +2,40 @@ import { IsString, IsOptional, IsMongoId, IsArray } from 'class-validator';
 
 export class CreateFarmMarketDto {
   @IsString()
-  FarmName: string;
+  farmName: string;
 
   @IsString()
-  FarmLocation: string;
-
-  @IsString()
-  @IsOptional()
-  FarmPhone: string;
+  farmLocation: string;
 
   @IsString()
   @IsOptional()
-  FarmEmail: string;
+  farmPhone: string;
 
   @IsString()
   @IsOptional()
-  FarmImage: string;
+  farmEmail: string;
 
-  @IsMongoId()
-  owner: string;  // Assuming owner is a MongoDB ObjectId
+  @IsString()
+  @IsOptional()
+  farmImage: string;
+
+  @IsString()
+  @IsOptional()
+  farmDescription: string;
+
+  @IsString()
+  owner: string;  
 
   @IsArray()
-  @IsMongoId({ each: true })
-  products: string[];
+  @IsOptional()
+  sales: string[];
 
   @IsString()
-  marketType: string;  // This should be 'farm' for this market type
+  @IsOptional()
+  rate?: string;
+
+  @IsArray()
+  @IsOptional()
+  crops: string[];
+ 
 }

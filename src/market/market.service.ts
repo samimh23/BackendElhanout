@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger, ForbiddenException } from "@nestjs/common";
 import { HttpService } from "@nestjs/axios";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
@@ -8,7 +8,7 @@ import { UpdateMarketDto } from "./dto/update-market.dto";
 import { ShareFractionDto } from "./dto/ShareFraction.dto";
 import { User } from "src/users/Schemas/User.schema";
 import { firstValueFrom } from 'rxjs';
-import { AxiosResponse } from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import * as dotenv from 'dotenv';
 
 // Import Hedera SDK components needed for account creation
@@ -348,8 +348,8 @@ export class MarketService {
         
         // Try to find this Hedera account in our user collection
         const userWithAccount = await this.userModel.findOne({ accounthederaid: recipientHederaId });
-        if (userWithAccount?.secretkey) {
-          recipientPrivateKey = userWithAccount.secretkey;
+        if (userWithAccount?.privateKey) {
+          recipientPrivateKey = userWithAccount.privateKey;
           this.logger.log(`Found matching user with this Hedera account in database`);
         } else {
           // Try to find this Hedera account in our market collection
@@ -371,9 +371,9 @@ export class MarketService {
         
         if (recipientType === 'user') {
           const user = await this.userModel.findById(shareData.recipientAddress);
-          if (user?.accounthederaid && user?.secretkey) {
-            recipientHederaId = user.accounthederaid;
-            recipientPrivateKey = user.secretkey;
+          if (user?.headerAccountId && user?.privateKey) {
+            recipientHederaId = user.headerAccountId;
+            recipientPrivateKey = user.privateKey;
             this.logger.log(`Found user recipient with Hedera account: ${recipientHederaId}`);
           } else {
             throw new BadRequestException(`User ${shareData.recipientAddress} doesn't have a Hedera account configured`);
@@ -393,9 +393,9 @@ export class MarketService {
         else {
           // Try user first
           const user = await this.userModel.findById(shareData.recipientAddress);
-          if (user?.accounthederaid && user?.secretkey) {
-            recipientHederaId = user.accounthederaid;
-            recipientPrivateKey = user.secretkey;
+          if (user?.headerAccountId && user?.privateKey) {
+            recipientHederaId = user.headerAccountId;
+            recipientPrivateKey = user.privateKey;
             this.logger.log(`Found user recipient with Hedera account: ${recipientHederaId}`);
           } else {
             // Try market next
@@ -663,4 +663,72 @@ export class MarketService {
     this.logger.log(`Found ${markets.length} markets for owner ${ownerId}`);
     return markets;
   }
+
+  
+  
+  async transferTokensToOwner(marketId: string, amount: number, requestUserId: string): Promise<any> {
+    try {
+      if (!Types.ObjectId.isValid(marketId)) {
+        throw new NotFoundException(`Invalid market ID format: ${marketId}`);
+      }
+      
+      const market = await this.normalMarketModel.findById(marketId);
+      if (!market) {
+        throw new NotFoundException(`Market with ID ${marketId} not found`);
+      }
+      
+      
+      const marketOwnerId = market.owner.toString();
+      if (marketOwnerId !== requestUserId) {
+        throw new ForbiddenException('You are not authorized to transfer tokens from this market');
+      }
+      
+      // Get the owner details
+      const owner = await this.userModel.findById(market.owner);
+      if (!owner) {
+        throw new NotFoundException(`Owner account for market ${marketId} not found`);
+      }
+
+      if (!owner.headerAccountId || !owner.privateKey) {
+        throw new ForbiddenException('Owner does not have valid Hedera credentials');
+      }
+
+      // Call the token transfer API
+      try {
+        const payload = {
+          senderAccountId: market.marketWalletPublicKey,
+          senderPrivateKey: market.marketWalletSecretKey,
+          receiverAccountId: owner.headerAccountId,
+          amount: amount,
+        };
+        const response = await axios.post('https://hserv.onrender.com/api/token/transfer', payload);
+
+
+      // Return success response with transaction details
+      return {
+        success: true,
+        message: `Successfully transferred ${amount} HC from market to owner`,
+        marketId: marketId,
+        ownerId: owner._id,
+        ownerHederaId: owner.headerAccountId,
+        transactionDetails: response.data,
+      };
+    } catch (error) {
+      // Log the error for debugging but return a cleaner message
+      console.error('Error transferring tokens:', error);
+      
+      // Return appropriate error response
+      return {
+        success: false,
+        message: 'Failed to transfer tokens',
+        error: error.message,
+      };
+    }
+    
+  }
+  catch (error) {
+    console.error('Error in transferTokensToOwner:', error);
+    throw new BadRequestException(`Failed to transfer tokens: ${error.message}`);
+  }
+}
 }

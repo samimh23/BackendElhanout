@@ -2,7 +2,7 @@ import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { Role } from 'src/users/Schemas/Role.enum';
 
 export class CreatePaymentIntentDto {
-  @IsEnum([Role.WHOLESALER, Role.Farmer])
+  @IsEnum([Role.MERCHANT, Role.Farmer])
   @IsNotEmpty()
   subscriptionType: Role;
   
@@ -11,7 +11,7 @@ export class CreatePaymentIntentDto {
   customerId?: string;
 }
 
-export class VerifyPaymentDto {
+export class VerifyPaymentDto { 
   @IsString()
   @IsNotEmpty()
   paymentIntentId: string;

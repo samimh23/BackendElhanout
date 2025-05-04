@@ -1,10 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Types, Document } from 'mongoose';
-
+export enum OrderStatus {
+  PROCESSING = "isProcessing",
+  DELIVERING = "Delivering",
+  ISRECIVED = "isReceived",
+}
 @Schema()
 export class Order extends Document {
   @Prop({ required: true })
   idOrder: string;
+
 
   @Prop({ type: Types.ObjectId, ref: 'NormalMarket', required: true })
   normalMarket: Types.ObjectId;
@@ -23,6 +28,12 @@ export class Order extends Document {
 
   @Prop({ default: false })
   isConfirmed: boolean;
+
+  @Prop({ type: String, enum: OrderStatus, required: true })
+  orderStatus: OrderStatus;
+
+  @Prop({ default: false })
+  totalPrice: number;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

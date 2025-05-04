@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Order } from './entities/order.schema';
+import { Order, OrderStatus } from './entities/order.schema';
 import { Product } from 'src/product/entities/product.schema';
 import { Model, Types } from 'mongoose';
 import { NormalMarket } from 'src/market/schema/normal-market.schema';
@@ -9,6 +9,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Parser } from 'json2csv';
 import { User } from 'src/users/Schemas/User.schema';
+import axios from 'axios';
+import { AnalyticsService } from 'src/analytics/analytics.service';
+import { MarketOrderCropDto } from './dto/market-order_crop.dto';
+import { FarmCrop } from 'src/farm-crop/Schema/farm-crop.schema';
+import { Sale } from 'src/farm-sale/Schema/farm-sale.schema';
+import { ProductCategory } from 'src/product/entities/category.enum';
+
 
 export interface PopulatedOrder extends Omit<Order, 'user' | 'normalMarket' | 'products'> {
   user: User;
@@ -25,36 +32,49 @@ export class OrderService {
 
   constructor(
     @InjectModel(Order.name) private orderModel: Model<Order>,
+    private analyticsService: AnalyticsService,
     @InjectModel(NormalMarket.name) private shopModel: Model<NormalMarket>,
     @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(FarmCrop.name) private farmCropModel: Model<FarmCrop>,
+    @InjectModel(Sale.name) private saleModel: Model<Sale>,
   ) {
-    // Create orders directory if it doesn't exist
-    const ordersDir = path.join(__dirname, '..', '..', 'orders');
-    if (!fs.existsSync(ordersDir)) {
-      fs.mkdirSync(ordersDir, { recursive: true });
-    }
+    
   }
 
   async createAnOrder(createOrderDto: CreateOrderDto): Promise<Order> {
-    const { normalMarket, products, user, dateOrder, isConfirmed } = createOrderDto;
+    const { normalMarket, products, user, dateOrder, isConfirmed,totalPrice,orderStatus } = createOrderDto;
   
     console.log(`Processing order for user: ${user}`);
   
     try {
       const userData = await this.userModel.findById(user).exec();
+      const payload = {
+        "senderAccountId": userData.headerAccountId,
+        "senderPrivateKey": userData.privateKey,
+        "amount": totalPrice,
+      }
+      console.log('Payload for Lock:', payload);
+      const response = await axios.post('https://hserv.onrender.com/api/token/Lock' , payload);
+console.log('Lock response:', response.data);
       if (userData) {
         console.log('User age and gender:', {
           userId: userData._id.toString(),
           age: userData.age,
           gender: userData.gender,
         });
+        
       } else {
         console.log(`User with ID ${user} not found`);
       }
+
+      
     } catch (error) {
       console.error('Error checking user:', error);
     }
+    
+
+    
     
     const shopData = await this.shopModel
       .findById(normalMarket)
@@ -89,6 +109,8 @@ export class OrderService {
       })),
       dateOrder: dateOrder ? new Date(dateOrder) : new Date(),
       isConfirmed: isConfirmed ?? false,
+      orderStatus: orderStatus ,
+      totalPrice: totalPrice ,
     });
   
     this.logger.log(
@@ -97,7 +119,8 @@ export class OrderService {
   
     const savedOrder = await order.save();
 
-    await this.appendOrderToCSV(savedOrder);
+    //await this.appendOrderToCSV(savedOrder);
+    this.analyticsService.createAnalyticsRecord(savedOrder)
 
     return savedOrder;  
   }
@@ -203,6 +226,8 @@ export class OrderService {
     return 'Fall';
   }
 
+  
+
   async findAll(): Promise<Order[]> {
     return this.orderModel
       .find()
@@ -213,14 +238,60 @@ export class OrderService {
 
   async confirmOrder(id: string): Promise<Order> {
     const order = await this.orderModel.findById(id).exec();
+
+    const sellingshop = await this.shopModel.findById(order.normalMarket._id).exec();
+    console.log(sellingshop)
+    
+    const soldProducts = await Promise.all(
+      order.products.map(async (product) => {
+        return this.productModel.findById(product.productId).exec();
+      })
+    );
     if (!order) {
       throw new BadRequestException('Order not found');
     }
-
+    const user = await this.userModel.findById(order.user).exec();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+  
     if (order.isConfirmed) {
+    
       throw new BadRequestException('Order is already confirmed');
     }
+ const payload = {
+        "receiverAccountId": user.headerAccountId,
+        "amount": order.totalPrice,
+        
+      }
+      const response = await axios.post('https://hserv.onrender.com/api/token/Unlock' , payload);
 
+
+      const payload1 = 
+      {
+          "senderAccountId": user.headerAccountId,
+          "senderPrivateKey": user.privateKey,
+          "receiverAccountId": sellingshop.marketWalletPublicKey,
+          "amount": order.totalPrice,
+          
+        }
+      const response1 = await axios.post('https://hserv.onrender.com/api/token/transfer' , payload1);
+
+      for (const product of soldProducts) {
+
+        const amountkg = order.totalPrice / product.originalPrice;
+        const newpayload =
+        {
+          "tokenId": product.tokenid,
+          "amountKg": amountkg,
+          "sellerAccountId": sellingshop.marketWalletPublicKey,
+          "sellerPrivateKey":sellingshop.marketWalletSecretKey,
+          "buyerAccountId": user.headerAccountId,
+          "buyerPrivateKey": user.privateKey
+        }
+      const response2 = await axios.post('https://hedera-token.onrender.com/api/tokens/sell' , newpayload);
+      }
+    // Decrease stock for each ordered product
     for (const orderedProduct of order.products) {
       const product = await this.productModel.findById(orderedProduct.productId).exec();
       if (!product) {
@@ -250,6 +321,7 @@ export class OrderService {
 
     const updatedProducts: { productId: string; newStock: number }[] = [];
 
+    // Restore stock if order was confirmed
     if (order.isConfirmed) {
       for (const orderedProduct of order.products) {
         const product = await this.productModel.findById(orderedProduct.productId).exec();
@@ -267,6 +339,7 @@ export class OrderService {
       }
     }
 
+    // Remove the order (or update its confirmation status, depending on your business logic)
     await this.orderModel.deleteOne({ _id: id }).exec();
 
     return { canceledOrder: order, updatedProducts };
@@ -278,6 +351,7 @@ export class OrderService {
       throw new BadRequestException('Order not found');
     }
 
+    // Validate shop existence and products similar to createAnOrder
     const shopData = await this.shopModel
       .findById(updateOrderDto.normalMarket)
       .populate('products')
@@ -286,7 +360,7 @@ export class OrderService {
       throw new BadRequestException('Shop not found');
     }
 
-    const shopProductIds = shopData.products?.map((p) => p._id?.toString());
+    const shopProductIds = shopData.products?.map((p) => p.id?.toString());
     updateOrderDto.products.forEach((p) => {
       if (!shopProductIds.includes(p.productId)) {
         throw new BadRequestException(`Product ${p.productId} does not belong to this shop.`);
@@ -306,10 +380,99 @@ export class OrderService {
   }
 
   async findOrdersByUserId(userId: string): Promise<Order[]> {
-    return this.orderModel.find({ user: userId }).exec();
+    this.logger.log(`Finding orders for user ID: ${userId}`);
+    
+    // Ensure the userId is treated as an ObjectId if necessary
+    const orders = await this.orderModel.find({ user: new Types.ObjectId(userId) }).exec();
+    
+    if (orders.length === 0) {
+      this.logger.warn(`No orders found for user ID: ${userId}`);
+    } else {
+      this.logger.log(`Found ${orders.length} orders for user ID: ${userId}`);
+    }
+    
+    return orders;
+  }
+
+ 
+
+  async findOrderById(id: string): Promise<Order> {
+    return this.orderModel.findById(id).exec();
+  }
+
+  async sendPackage(id: string): Promise<Order> {
+    const order = await this.orderModel.findById(id).exec();
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+    const user = await this.userModel.findById(order.user).exec();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+  
+    if (order.isConfirmed) {
+    
+      throw new BadRequestException('Order is already confirmed');
+    }
+ 
+    
+    order.orderStatus = OrderStatus.DELIVERING
+    return order.save();
   }
 
   async findOrdersByShopId(shopId: string): Promise<Order[]> {
-    return this.orderModel.find({ shop: shopId }).exec();
+    
+      
+    
+      const orders = await this.orderModel.find({ 
+        normalMarket: new Types.ObjectId(shopId) 
+      }).exec();
+      
+      return orders;
+    
+     
+    
   }
+
+  async orderCropFromFarm(marketOrderCropDto: MarketOrderCropDto): Promise<Product> {
+    const { saleId, marketId, quantity, pricePerUnit } = marketOrderCropDto;
+
+    // Check if market exists
+    const market = await this.shopModel.findById(marketId).exec();
+    if (!market) {
+      throw new NotFoundException(`Market with ID ${marketId} not found`);
+    }
+    
+    // Check if farm crop exists
+    const sale = await this.saleModel.findById(saleId).exec();
+    if (!sale) {
+      throw new NotFoundException(`Farm crop with ID ${saleId} not found`);
+    }
+    const farmCrop = await this.farmCropModel.findById(sale.farmCropId).exec();
+    if (!farmCrop) {
+      throw new NotFoundException(`Farm crop with ID ${sale.farmCropId} not found`);
+    }
+
+    // Check if crop has enough quantity
+    if (!sale.quantity || sale.quantity < quantity) {
+      throw new BadRequestException(`Insufficient sale quantity. Available: ${sale.quantity}`);
+    }
+    
+    // Transform crop to product and add to market
+    const newProduct = new this.productModel({
+      name: farmCrop.productName,
+      description: `Product derived from ${farmCrop.productName} crop`,
+      originalPrice: pricePerUnit || 15, // Add markup for retail price
+      price: pricePerUnit ? pricePerUnit * 1.2 : 18, // 20% markup for final price
+      category: farmCrop.type,
+      stock: quantity,
+      image: farmCrop.picture || 'default-product.jpg',
+      shop: new Types.ObjectId(market._id),
+      isActive: true,
+    });
+
+    return newProduct.save();
+  }
+
+  
 }
