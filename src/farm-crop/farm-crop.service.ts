@@ -39,8 +39,6 @@ export class FarmCropService {
   }
 
 
-  
-
 
   async delete(id: string): Promise<FarmCrop> {
     const deletedFarmCrop = await this.farmCropModel.findByIdAndDelete(id).exec();
