@@ -10,7 +10,7 @@ import { User, UserSchema } from 'src/users/Schemas/User.schema';
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    HttpModule, // Add HttpModule here
+    HttpModule, 
     MongooseModule.forFeature([
       { name: NormalMarket.name, schema: NormalMarketSchema },
       {name: User.name, schema: UserSchema}
