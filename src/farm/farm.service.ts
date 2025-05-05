@@ -32,6 +32,24 @@ export class FarmService {
     return this.farmMarketModel.findById(id).exec();
   }
 
+   // Get all products associated with a farm market
+   async getFarmProducts(farmId: string) {
+    if (!farmId || !isValidObjectId(farmId)) {
+      throw new BadRequestException('Invalid farm market ID');
+    }
+
+    const farmMarket = await this.farmMarketModel
+      .findById(farmId)
+      .populate('products')
+      .exec();
+
+    if (!farmMarket) {
+      throw new BadRequestException(`Farm market with ID ${farmId} not found`);
+    }
+
+    return farmMarket.products;
+  }
+
   // Update a FarmMarket
   async update(id: string, updateFarmMarketDto: CreateFarmMarketDto): Promise<FarmMarket> {
     if (!id || !isValidObjectId(id)) {
