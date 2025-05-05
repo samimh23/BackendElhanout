@@ -15,11 +15,9 @@ async function bootstrap() {
       fs.mkdirSync(uploadPath, { recursive: true });
   }
 
-  // Create a public directory for static files like payment success/cancel pages
   const publicPath = path.join(__dirname, '..', 'public');
   const paymentsPath = path.join(publicPath, 'payments');
   
-  // Ensure the public and payments folders exist
   if (!fs.existsSync(publicPath)) {
       fs.mkdirSync(publicPath, { recursive: true });
   }
@@ -27,7 +25,6 @@ async function bootstrap() {
       fs.mkdirSync(paymentsPath, { recursive: true });
   }
   
-  // Create success.html file if it doesn't exist
   const successHtmlPath = path.join(paymentsPath, 'success.html');
   if (!fs.existsSync(successHtmlPath)) {
     const successHtml = `<!DOCTYPE html>

@@ -37,13 +37,11 @@ export class MarketController {
 
     createNormalMarketDto.marketImage = marketImage.path;
     
-    // Extract userId from the authenticated request
     const userId = req.user.userId;
     
     return this.normalMarketService.create(createNormalMarketDto, userId);
   }
 
-  // NEW ENDPOINT: Create NFT for existing market
   @UseGuards(AuthenticationGuard, RolesGuard)
   @Roles(Role.MERCHANT)
   @Post(':id/create-nft')
@@ -53,7 +51,6 @@ export class MarketController {
   ): Promise<NormalMarket> {
     console.log("Creating NFT for Market ID:", id);
     
-    // Extract userId from the authenticated request
     const userId = req.user.userId;
     
     try {
@@ -76,10 +73,8 @@ export class MarketController {
     @Body() shareData: ShareFractionDto,
     @Request() req
   ) {
-    // Extract userId from the authenticated request
     const userId = req.user.userId;
     
-    // Use normalMarketService instead of marketService
     return this.normalMarketService.shareFractionalNFT(id, shareData, userId);
   }
 
@@ -88,12 +83,10 @@ export class MarketController {
     return this.normalMarketService.findAll();
   }
 
-  // IMPORTANT: This specific route must come BEFORE the generic :id route
   @UseGuards(AuthenticationGuard)
   @Get('my-markets')
   async getMyMarkets(@Request() req): Promise<NormalMarket[]> {
-    // Get user ID from the JWT payload
-    // The log shows your auth guard is setting userId correctly in other routes
+   
     const userId = req.user._id || req.user.id;
     
     console.log(`Fetching markets for authenticated user ID: ${userId}`);
@@ -120,10 +113,8 @@ export class MarketController {
   ): Promise<NormalMarket> {
     console.log("Updating Market ID:", id);
     
-    // Extract userId from the authenticated request
     const userId = req.user.userId;
     
-    // First check if market exists
     const existingMarket = await this.normalMarketService.findOne(id);
     if (!existingMarket) {
       throw new NotFoundException(`Market with id ${id} not found`);
@@ -146,10 +137,8 @@ export class MarketController {
   ): Promise<NormalMarket> {
     console.log("Deleting Market ID:", id);
     
-    // Extract userId from the authenticated request
     const userId = req.user.userId;
     
-    // First check if market exists
     const existingMarket = await this.normalMarketService.findOne(id);
     if (!existingMarket) {
       throw new NotFoundException(`Market with id ${id} not found`);
@@ -159,8 +148,7 @@ export class MarketController {
   }
 
   @UseGuards(AuthenticationGuard, RolesGuard)
-  @Roles(Role.MERCHANT)
-  @Post(':id/transfer-tokens')  
+  @Roles(Role.MERCHANT)  @Post(':id/transfer-tokens')  
   async transferTokensToOwner(
     @Param('id') marketId: string,
     @Body() body: { amount: number },

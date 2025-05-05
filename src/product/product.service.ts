@@ -44,7 +44,6 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
       throw new BadRequestException('Shop not found');
     }
 
-    // Create product in MongoDB
     const newProduct = new this.productModel({
       ...createProductDto,
       shop: shop._id,
@@ -52,11 +51,9 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
       updatedAt: new Date(),
     });
 
-    // Save the product to get an ID
     const savedProduct = await newProduct.save();
     
     
-    // Update the shop's products array with the new product ID
     await this.shopModel.findByIdAndUpdate(
       shop._id,
       { $push: { products: savedProduct._id } },
@@ -64,12 +61,10 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
     );
     
     
-    // Check if we should create a Hedera token (if stock > 0)
     if (savedProduct.stock > 0) {
       try {
         console.log('Creating Hedera token for product...');
         
-        // Call your existing Hedera API to create a token WITH TIMEOUT
         const createTokenResponse = await firstValueFrom(
           this.httpService.post(`${this.hederaApiUrl}/api/tokens/create`, {
             productName: savedProduct.name,
@@ -85,11 +80,10 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
             }
           }, 
           {
-            timeout: 10000000 // Add 30-second timeout
+            timeout: 10000000 
           })
         );
         
-        // Get the token data from the response
         const tokenData = createTokenResponse.data;
         
         if (tokenData && tokenData.success && tokenData.tokenId) {
@@ -102,11 +96,9 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
         } else {
         }
       } catch (error) {
-        // Don't throw - we still created the product successfully
       }
     }
     
-    // Return the updated product with token ID
     return this.productModel.findById(savedProduct._id).exec();
     
   } catch (error) {
@@ -125,7 +117,6 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
     id: String,
     updateProductDto: UpdateProductDto,
   ): Promise<Product> {
-    // Get the existing product to check if we need to delete old image
     const existingProduct = await this.productModel.findById(id);
     
     if (!existingProduct) {
@@ -134,28 +125,23 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
     
     console.log('Updating product with data:', JSON.stringify(updateProductDto));
     
-    // If the image has changed and the old one exists, delete it
     if (existingProduct && existingProduct.image && 
         updateProductDto.image && 
         existingProduct.image !== updateProductDto.image &&
         !updateProductDto.image.includes('/uploads/product/default')) {
           
       try {
-        // Get the full path to the old image
         const oldImagePath = path.join(process.cwd(), existingProduct.image);
         
-        // Check if file exists before trying to delete
         if (fs.existsSync(oldImagePath)) {
           fs.unlinkSync(oldImagePath);
           console.log(`Deleted old product image: ${oldImagePath}`);
         }
       } catch (err) {
         console.error('Error deleting old image file:', err);
-        // Continue anyway - this is not critical
       }
     }
     
-    // Only update fields that are present in the update object
     const updateOperation = {};
     
     Object.keys(updateProductDto).forEach(key => {
@@ -176,7 +162,6 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
       throw new BadRequestException('Product not found.');
     }
     
-    // Try to delete the product image if it exists
     if (product.image) {
       try {
         const imagePath = path.join(process.cwd(), product.image);
@@ -186,11 +171,9 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
         }
       } catch (err) {
         console.error('Error deleting image file:', err);
-        // Continue anyway - this is not critical
       }
     }
     
-    // Remove the product ID from the shop's products array
     if (product.shop) {
       await this.shopModel.findByIdAndUpdate(
         product.shop,
@@ -212,31 +195,25 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
   }
 
   async discountProduct(productId: string, discountPercentage: number): Promise<Product> {
-    // Validate the discount percentage.
     if (discountPercentage < 0 || discountPercentage > 100) {
       throw new BadRequestException('Discount percentage must be between 0 and 100.');
     }
   
-    // Retrieve the product by its id.
     const product = await this.productModel.findById(productId).exec();
     if (!product) {
       throw new BadRequestException('Product not found.');
     }
   
-    // If originalPrice is not set, initialize it with the current price.
     if (!product.originalPrice) {
       product.originalPrice = product.price;
     }
   
-    // Calculate the new price based on the originalPrice.
     const discountFactor = discountPercentage / 100;
     product.price = product.originalPrice - (discountFactor * product.originalPrice);
   
-    // Mark the product as discounted.
     product.isDiscounted = true;
     product.DiscountValue = discountPercentage;
   
-    // Save and return the updated product.
     return product.save();
   }
 

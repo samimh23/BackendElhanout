@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Patch } from '@nestjs/common';
 import { FarmCropService } from './farm-crop.service';
 import { FarmCrop } from './Schema/farm-crop.schema';
 import { CreateFarmCropDto } from './dto/create-farm-crop.dto';
@@ -28,6 +28,9 @@ export class FarmCropController {
   findOne(@Param('id') id: string): Promise<FarmCrop> {
     return this.farmCropService.findOne(id);
   }
+
+ 
+
 
   @Put(':id')
   update(@Param('id') id: string, @Body() updateFarmCropDto: UpdateFarmCropDto): Promise<FarmCrop> {

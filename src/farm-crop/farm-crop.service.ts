@@ -38,6 +38,8 @@ export class FarmCropService {
     return updatedFarmCrop;
   }
 
+
+
   async delete(id: string): Promise<FarmCrop> {
     const deletedFarmCrop = await this.farmCropModel.findByIdAndDelete(id).exec();
     if (!deletedFarmCrop) {

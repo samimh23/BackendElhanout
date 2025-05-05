@@ -4,6 +4,7 @@ import { Markets } from 'src/Common/Schema/market.schema';
 @Schema()
 export class FarmMarket extends Markets {
 
+
   @Prop({ required: true })
   farmName: string;
 
