@@ -1,10 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { Markets } from 'src/Common/Schema/market.schema';
 @Schema()
-export class FarmMarket {
+export class FarmMarket extends Markets {
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true }) 
-  owner: Types.ObjectId;
 
   @Prop({ required: true })
   farmName: string;

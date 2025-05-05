@@ -20,10 +20,10 @@ export class NormalMarket extends Markets {
   marketImage: string;
 
   @Prop({ required: true })
-  marketWalletPublicKey: string; // Market's hedera id
+  marketWalletPublicKey: string; 
 
   @Prop({ required: true })
-  marketWalletSecretKey: string; // Market's hedera secret key (store securely!)
+  marketWalletSecretKey: string; 
 
   @Prop({ required: true, default: 100 }) // 100% ownership initially
   fractions: number;
