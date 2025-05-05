@@ -28,11 +28,6 @@ export class FarmCropController {
   findOne(@Param('id') id: string): Promise<FarmCrop> {
     return this.farmCropService.findOne(id);
   }
-
-  @Get('farm/:farmMarketId')
-  findByFarmId(@Param('farmMarketId') farmMarketId: string): Promise<FarmCrop[]> {
-    return this.farmCropService.findByFarmId(farmMarketId);
-  }
   
 
 

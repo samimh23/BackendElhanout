@@ -39,10 +39,6 @@ export class FarmCropService {
   }
 
 
-  async findByFarmId(farmMarketId: string): Promise<FarmCrop[]> {
-    return this.farmCropModel.find({ farmMarketId }).exec();
-  }
-
 
   async delete(id: string): Promise<FarmCrop> {
     const deletedFarmCrop = await this.farmCropModel.findByIdAndDelete(id).exec();
