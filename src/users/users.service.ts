@@ -553,7 +553,7 @@ export class UsersService {
             success: true,
             message: 'Profile picture uploaded successfully',
             profilepicture: fileUrl,
-            fullUrl: `http://localhost:3000${fileUrl}`
+            fullUrl: `http://192.168.251.19:3000${fileUrl}`
           };
         } catch (error) {
           this.logger.error(`Failed to upload profile picture: ${error.message}`);
