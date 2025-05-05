@@ -29,6 +29,12 @@ export class FarmController {
   async findOne(@Param('id') id: string): Promise<FarmMarket> {
     return this.farmMarketService.findOne(id);
   }
+
+  @Get(':id/products')
+  async getFarmProducts(@Param('id') id: string) {
+    return this.farmMarketService.getFarmProducts(id);
+  }
+  
   @UseGuards(RolesGuard,AuthenticationGuard)
   @Roles( Role.Farmer)
   @Patch(':id')

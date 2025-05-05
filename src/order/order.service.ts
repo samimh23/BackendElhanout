@@ -239,7 +239,7 @@ console.log('Lock response:', response.data);
   async confirmOrder(id: string): Promise<Order> {
     const order = await this.orderModel.findById(id).exec();
 
-    const sellingshop = await this.shopModel.findById(order.normalMarket._id).exec();
+    const sellingshop = await this.shopModel.findById(order.normalMarket.id).exec();
     console.log(sellingshop)
     
     const soldProducts = await Promise.all(
