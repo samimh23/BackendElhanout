@@ -66,5 +66,11 @@ export class HederaController {
   @Get('trace/my-transactions')
   async traceMyTransactions(@Request() req) {
     return this.hederaService.traceUserTransactions(req.user.id);
-  }
+  
+}
+
+@Get('check-all')
+async checkAll(@Query('tokenId') tokenId: string) {
+  return this.hederaService.getTokenOwnership(tokenId);
+}
 }

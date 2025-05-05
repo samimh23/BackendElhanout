@@ -2,8 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Markets } from 'src/Common/Schema/market.schema';
 @Schema()
-export class FarmMarket  extends Markets{
-
+export class FarmMarket extends Markets {
 
 
   @Prop({ required: true })

@@ -27,6 +27,7 @@ import { ReservationModule } from './reservation/reservation.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuctionModule } from './auction/auction.module';
 import { HederaModule } from './hedera/hedera.module';
+import { FarmCropToProductModule } from './TransformCropProduct/transform.module';
 
 @Module({
   imports: [
@@ -78,7 +79,9 @@ import { HederaModule } from './hedera/hedera.module';
     ReservationModule,
     AnalyticsModule,
     AuctionModule,
-    HederaModule
+    HederaModule,
+    FarmCropToProductModule
+  
   ],
   controllers: [AppController],
   providers: [AppService,MailService],

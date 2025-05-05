@@ -260,4 +260,28 @@ export class HederaService {
       throw new InternalServerErrorException('Failed to create Hedera wallet');
     }
   }
+  async getTokenOwnership(tokenId: string) {
+    if (!tokenId) {
+      throw new Error('Token ID is required');
+    }
+    let url = `https://testnet.mirrornode.hedera.com/api/v1/tokens/${tokenId}/balances?limit=100`;
+    let balances: any[] = [];
+
+    while (url) {
+      const { data } = await axios.get(url);
+      balances = balances.concat(data.balances || []);
+      url = data.links?.next ? `https://testnet.mirrornode.hedera.com${data.links.next}` : '';
+    }
+    const totalShares = balances.reduce((sum, item) => sum + item.balance, 0);
+
+    return {
+      tokenId,
+      totalShares,
+      ownershipDistribution: balances.map(b => ({
+        accountId: b.account,
+        shares: b.balance,
+        percentage: totalShares > 0 ? (b.balance / totalShares) * 100 : 0,
+      })),
+    };
+  }
 }

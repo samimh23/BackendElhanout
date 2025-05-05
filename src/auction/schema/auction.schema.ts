@@ -27,6 +27,9 @@ export class Auction extends Document {
   @Prop({ required: true })
   startTime: Date;
 
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  soldTo: Types.ObjectId;
+
   @Prop({ required: true })
   endTime: Date;
 

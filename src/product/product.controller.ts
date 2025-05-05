@@ -47,7 +47,6 @@ export class ProductController {
         let fileExtension = '.jpg'; // Default extension
         
         if (base64Data.startsWith('data:image')) {
-          // Extract mime type and base64 content
           const matches = base64Data.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
           if (matches && matches.length === 3) {
             const mimeType = matches[1];

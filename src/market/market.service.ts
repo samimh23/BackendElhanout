@@ -11,7 +11,6 @@ import { firstValueFrom } from 'rxjs';
 import axios, { AxiosResponse } from 'axios';
 import * as dotenv from 'dotenv';
 
-// Import Hedera SDK components needed for account creation
 import {
   Client,
   PrivateKey,
@@ -23,7 +22,6 @@ import {
 
 dotenv.config();
 
-// Define interfaces for API responses
 interface NFTResponse {
   success: boolean;
   message: string;
@@ -82,7 +80,6 @@ export class MarketService {
     @InjectModel(User.name) private userModel: Model<User>,
     private readonly httpService: HttpService
   ) {
-    // Initialize connection to Hedera - still needed for basic operations
     this.operatorId = process.env.HEDERA_ACCOUNT_ID;
     if (!this.operatorId) {
       this.logger.error("⚠️ No Hedera account ID found in environment variables!");
@@ -105,15 +102,12 @@ export class MarketService {
       throw new Error(`Failed to initialize Hedera connection: ${error.message}`);
     }
 
-    // Set NFT API URL from environment or use default
     this.nftApiUrl = process.env.NFT_API_URL || 'http://localhost:3001/api';
     this.logger.log(`✅ Using NFT API at: ${this.nftApiUrl}`);
     
-    // Check the operator balance on startup
     this.checkOperatorBalance();
   }
 
-  // Check and log operator account balance
   private async checkOperatorBalance() {
     try {
       const accountBalance = await new AccountBalanceQuery()
@@ -131,30 +125,24 @@ export class MarketService {
     }
   }
 
-  // Create a new Hedera account for the market
   private async createMarketAccount(marketName: string): Promise<{ accountId: string, privateKey: string }> {
     try {
       this.logger.log(`Creating new Hedera account for market: ${marketName}`);
       
-      // Generate a new key pair for the account
       const marketPrivateKey = PrivateKey.generateED25519();
       const marketPublicKey = marketPrivateKey.publicKey;
       
-      // Create a new account and specify the initial balance
-      // We'll transfer 5 HBAR from the main account to this new account
-      const initialBalance = 5; // Initial balance in HBAR
       
-      // Create the transaction
+      const initialBalance = 5;
+      
       const transaction = new AccountCreateTransaction()
         .setKey(marketPublicKey)
         .setInitialBalance(new Hbar(initialBalance))
         .freezeWith(this.client);
       
-      // Sign and submit the transaction
       const signedTx = await transaction.sign(this.operatorKey);
       const txResponse = await signedTx.execute(this.client);
       
-      // Get the receipt and the new account ID
       const receipt = await txResponse.getReceipt(this.client);
       const newAccountId = receipt.accountId.toString();
       
@@ -175,33 +163,27 @@ export class MarketService {
     this.logger.log(`🎯 Creating Market: ${createNormalMarketDto.marketName} for user ${userId}`);
   
     try {
-      // Create a dedicated Hedera account for this market
       const marketAccount = await this.createMarketAccount(createNormalMarketDto.marketName);
       
       this.logger.log(`✅ Generated Hedera account for market: ${marketAccount.accountId}`);
       
-      // Initialize with default values
       let fractionalNFTAddress = "PENDING_CREATION";
-      let fractions = 10000; // 10000 shares = 100% ownership initially
+      let fractions = 10000; 
       
-      // Store market information in the database including the Hedera account details
       const newMarket = new this.normalMarketModel({
         ...createNormalMarketDto,
-        marketWalletPublicKey: marketAccount.accountId, // Use account ID as public key identifier
-        marketWalletSecretKey: marketAccount.privateKey, // Store the private key securely
+        marketWalletPublicKey: marketAccount.accountId, 
+        marketWalletSecretKey: marketAccount.privateKey, 
         fractionalNFTAddress: fractionalNFTAddress,
         fractions: fractions,
         owner: new Types.ObjectId(userId),
         marketType: 'normal'
       });
   
-      // Save the market to get an ID before creating NFT
       const savedMarket = await newMarket.save();
       this.logger.log(`✅ Market saved to database with ID: ${savedMarket._id}`);
       
-      // Create NFT and fractional token via API for this market account
       try {
-        // Create the fractional token via API for this market account
         const requestData = {
           name: `Market: ${savedMarket.marketName}`,
           symbol: `MKT-${savedMarket._id.toString().substring(0, 5)}`,
@@ -219,7 +201,6 @@ export class MarketService {
           throw new Error(response.data.message || 'NFT creation failed');
         }
         
-        // Update the market with the token ID from the API response
         savedMarket.fractionalNFTAddress = response.data.data.tokenId;
         await savedMarket.save();
         
@@ -228,7 +209,6 @@ export class MarketService {
         this.logger.warn(`⚠️ Could not create token automatically: ${error.message}. Market created without token.`);
       }
       
-      // Update the user's markets array with this new market ID
       try {
         const marketId = savedMarket._id;
         const user = await this.userModel.findById(userId);
@@ -237,19 +217,16 @@ export class MarketService {
           throw new Error(`User with ID ${userId} not found`);
         }
         
-        // Ensure markets array exists and add the market ID
         if (!user.markets) {
           user.markets = [];
         }
         
-        // Add the market ID as a properly typed ObjectId
         user.markets.push(marketId);
         await user.save();
         
         this.logger.log(`✅ Added market ${marketId} to user ${userId}'s markets array`);
       } catch (updateError) {
         this.logger.error(`⚠️ Failed to update user's markets array: ${updateError.message}`, updateError.stack);
-        // We don't throw here to avoid failing the entire market creation process
       }
       return savedMarket;
     } catch (error) {
@@ -258,25 +235,21 @@ export class MarketService {
     }
   }
 
-  // Method to manually create token for an existing market
   async createTokenForExistingMarket(marketId: string, userId: string): Promise<NormalMarket> {
     const market = await this.normalMarketModel.findById(marketId);
     if (!market) {
       throw new NotFoundException("Market not found");
     }
     
-    // Check ownership
     if (market.owner && market.owner.toString() !== userId) {
       throw new BadRequestException("You don't have permission to create token for this market");
     }
     
-    // Skip if the market already has a token
     if (market.fractionalNFTAddress && market.fractionalNFTAddress !== "PENDING_CREATION") {
       return market;
     }
     
     try {
-      // Call the token creation API using the market's Hedera account
       const requestData = {
         name: `Market: ${market.marketName}`,
         symbol: `MKT-${market._id.toString().substring(0, 5)}`,
@@ -294,7 +267,6 @@ export class MarketService {
         throw new Error(response.data.message || 'Token creation failed');
       }
       
-      // Update the market with the token ID from the API response
       market.fractionalNFTAddress = response.data.data.tokenId;
       await market.save();
       
@@ -312,225 +284,219 @@ export class MarketService {
     shareData: ShareFractionDto,
     userId: string
   ): Promise<{ success: boolean; transactionId: string; recipientHederaId?: string }> {
-    // Validate input
     if (shareData.percentage <= 0 || shareData.percentage > 100) {
       throw new BadRequestException('Percentage must be between 0 and 100');
     }
-    
+  
     this.logger.log(`Starting share of ${shareData.percentage}% tokens to ${shareData.recipientAddress}`);
-    
-    // Find the market
+  
     const market = await this.normalMarketModel.findById(marketId);
     if (!market) {
       throw new NotFoundException("Market not found");
     }
-    
-    // Check ownership
+  
     if (market.owner && market.owner.toString() !== userId) {
       throw new BadRequestException("You don't have permission to share token for this market");
     }
-    
-    // Verify the market has a valid fractional token
+  
     if (!market.fractionalNFTAddress || market.fractionalNFTAddress === "PENDING_CREATION") {
       throw new BadRequestException("This market doesn't have a valid fractional token yet");
     }
-    
+  
     try {
-      // Variable to store recipient's Hedera account ID and private key
       let recipientHederaId: string = shareData.recipientAddress;
       let recipientPrivateKey: string | undefined;
-      
-      // Check if the recipientAddress is a direct Hedera account ID
+      let recipientResolvedType: string = 'unknown';
+  
+      // === RESOLVE RECIPIENT ===
       const isDirectHederaAccount = /^0\.0\.\d+$/.test(shareData.recipientAddress);
-      
+  
       if (isDirectHederaAccount) {
-        this.logger.log(`Direct Hedera account ID provided: ${recipientHederaId}. Looking up in database...`);
-        
-        // Try to find this Hedera account in our user collection
-        const userWithAccount = await this.userModel.findOne({ accounthederaid: recipientHederaId });
+        // Try user first
+        const userWithAccount = await this.userModel.findOne({ headerAccountId: recipientHederaId });
         if (userWithAccount?.privateKey) {
           recipientPrivateKey = userWithAccount.privateKey;
-          this.logger.log(`Found matching user with this Hedera account in database`);
+          recipientResolvedType = "user";
+          this.logger.log(`Resolved recipient as USER with accountId=${recipientHederaId}`);
         } else {
-          // Try to find this Hedera account in our market collection
+          // Try market
           const marketWithAccount = await this.normalMarketModel.findOne({ marketWalletPublicKey: recipientHederaId });
           if (marketWithAccount?.marketWalletSecretKey) {
             recipientPrivateKey = marketWithAccount.marketWalletSecretKey;
-            this.logger.log(`Found matching market with this Hedera account in database`);
+            recipientResolvedType = "market";
+            this.logger.log(`Resolved recipient as MARKET with accountId=${recipientHederaId}`);
           } else {
-            this.logger.log(`No matching account found in database for ${recipientHederaId}`);
+            this.logger.warn(`No local private key found for accountId=${recipientHederaId}`);
           }
         }
-      }
-      else if (Types.ObjectId.isValid(shareData.recipientAddress)) {
-        // Handle recipient by ObjectId (existing code)
-        const originalRecipientId = shareData.recipientAddress;
+      } else if (Types.ObjectId.isValid(shareData.recipientAddress)) {
         let recipientType = shareData.recipientType || null;
-        
-        this.logger.log(`Recipient type specified as: ${recipientType || 'not specified - will try to detect'}`);
-        
         if (recipientType === 'user') {
           const user = await this.userModel.findById(shareData.recipientAddress);
+          this.logger.log('USER LOOKUP:', JSON.stringify(user));
           if (user?.headerAccountId && user?.privateKey) {
             recipientHederaId = user.headerAccountId;
             recipientPrivateKey = user.privateKey;
-            this.logger.log(`Found user recipient with Hedera account: ${recipientHederaId}`);
+            recipientResolvedType = "user";
+            this.logger.log(`Resolved recipient as USER by ObjectId: ${recipientHederaId}`);
           } else {
             throw new BadRequestException(`User ${shareData.recipientAddress} doesn't have a Hedera account configured`);
           }
-        } 
-        else if (recipientType === 'market') {
+        } else if (recipientType === 'market') {
           const recipientMarket = await this.normalMarketModel.findById(shareData.recipientAddress);
+          this.logger.log('MARKET LOOKUP:', JSON.stringify(recipientMarket));
           if (recipientMarket?.marketWalletPublicKey && recipientMarket?.marketWalletSecretKey) {
             recipientHederaId = recipientMarket.marketWalletPublicKey;
             recipientPrivateKey = recipientMarket.marketWalletSecretKey;
-            this.logger.log(`Found market recipient with Hedera account: ${recipientHederaId}`);
+            recipientResolvedType = "market";
+            this.logger.log(`Resolved recipient as MARKET by ObjectId: ${recipientHederaId}`);
           } else {
             throw new BadRequestException(`Market ${shareData.recipientAddress} doesn't have a valid Hedera account`);
           }
-        }
-        // If no type specified, try both but give priority to users
-        else {
-          // Try user first
+        } else {
+          // Try user first, then market
           const user = await this.userModel.findById(shareData.recipientAddress);
+          this.logger.log('USER FALLBACK LOOKUP:', JSON.stringify(user));
           if (user?.headerAccountId && user?.privateKey) {
             recipientHederaId = user.headerAccountId;
             recipientPrivateKey = user.privateKey;
-            this.logger.log(`Found user recipient with Hedera account: ${recipientHederaId}`);
+            recipientResolvedType = "user";
+            this.logger.log(`Resolved recipient as USER by fallback: ${recipientHederaId}`);
           } else {
-            // Try market next
             const recipientMarket = await this.normalMarketModel.findById(shareData.recipientAddress);
+            this.logger.log('MARKET FALLBACK LOOKUP:', JSON.stringify(recipientMarket));
             if (recipientMarket?.marketWalletPublicKey && recipientMarket?.marketWalletSecretKey) {
               recipientHederaId = recipientMarket.marketWalletPublicKey;
               recipientPrivateKey = recipientMarket.marketWalletSecretKey;
-              this.logger.log(`Found market recipient with Hedera account: ${recipientHederaId}`);
+              recipientResolvedType = "market";
+              this.logger.log(`Resolved recipient as MARKET by fallback: ${recipientHederaId}`);
             } else {
               throw new BadRequestException(`Recipient ${shareData.recipientAddress} not found or doesn't have a valid Hedera account`);
             }
           }
         }
-        
-        this.logger.log(`Translated recipient ID ${originalRecipientId} to Hedera account ${recipientHederaId}`);
       } else {
-        // Invalid format
         throw new BadRequestException(`Invalid recipient address format. Must be a valid ObjectId or Hedera account ID (0.0.XXXX).`);
       }
   
-      // If we found the private key, first try to associate the token
-      if (recipientPrivateKey) {
-        try {
-          this.logger.log(`Attempting to associate token ${market.fractionalNFTAddress} with recipient ${recipientHederaId} before transfer...`);
-          this.logger.log(`Using recipient's private key for association`);
-          
-          // Call the API to associate the token first
+      this.logger.log(`[DEBUG] recipientId=${recipientHederaId}, recipientType=${recipientResolvedType}, privateKey=${recipientPrivateKey ? '[REDACTED]' : 'MISSING'}`);
+  
+      // === SHARE LOGIC ===
+      const performShare = async (): Promise<AxiosResponse<ShareResponse>> => {
+        const requestData: any = {
+          tokenId: market.fractionalNFTAddress,
+          recipientId: recipientHederaId,
+          percentageToShare: shareData.percentage,
+          marketAccountId: market.marketWalletPublicKey,
+          marketPrivateKey: market.marketWalletSecretKey,
+        };
+        if (recipientPrivateKey) {
+          requestData['recipientPrivateKey'] = recipientPrivateKey;
+        }
+        this.logger.log(`[SHARE] Calling NFT API at ${this.nftApiUrl}/share with recipient: ${recipientHederaId}`);
+        this.logger.log(`[SHARE] Request data: ${JSON.stringify({
+          ...requestData,
+          marketPrivateKey: '[REDACTED]',
+          recipientPrivateKey: recipientPrivateKey ? '[REDACTED]' : undefined
+        })}`);
+        return await firstValueFrom(
+          this.httpService.post<ShareResponse>(`${this.nftApiUrl}/share`, requestData)
+        );
+      };
+  
+      let response: AxiosResponse<ShareResponse>;
+      let attemptedAssociation = false;
+  
+      try {
+        response = await performShare();
+      } catch (error) {
+        const apiError = error?.response?.data;
+        this.logger.error(`[ERROR] Initial share failed: ${JSON.stringify(apiError)}`);
+        // Even if we send recipientPrivateKey, some APIs require explicit association first
+        if (
+          apiError?.error === 'TOKEN_NOT_ASSOCIATED_TO_ACCOUNT' &&
+          recipientPrivateKey &&
+          !attemptedAssociation
+        ) {
+          this.logger.warn(
+            `[ASSOCIATE] Recipient's account not associated, will call /associate with accountId=${recipientHederaId}, type=${recipientResolvedType}`
+          );
+          // Explicitly associate
           const associateData = {
             tokenId: market.fractionalNFTAddress,
             accountId: recipientHederaId,
             privateKey: recipientPrivateKey
           };
-          
+          this.logger.log(`[ASSOCIATE] Request: ${JSON.stringify({
+            ...associateData,
+            privateKey: '[REDACTED]'
+          })}`);
           const associateResponse = await firstValueFrom(
             this.httpService.post(`${this.nftApiUrl}/associate`, associateData)
           );
-          
-          this.logger.log(`Token association response: ${JSON.stringify(associateResponse.data)}`);
-        } catch (associateError) {
-          // If the error is 'already associated', that's fine, continue
-          if (associateError.response?.data?.message?.includes('already associated')) {
-            this.logger.log(`Token is already associated with recipient account - proceeding with transfer`);
+          this.logger.log(`[ASSOCIATE] Response: ${JSON.stringify(associateResponse.data)}`);
+          if (associateResponse.data.success) {
+            attemptedAssociation = true;
+            this.logger.log('[ASSOCIATE] Association succeeded or already present, retrying share...');
+            response = await performShare();
           } else {
-            this.logger.warn(`Token association attempt failed: ${associateError.message}. Will try direct transfer anyway.`);
-            
-            // Log more details about the error
-            if (associateError.response?.data) {
-              this.logger.error(`Association API error details: ${JSON.stringify(associateError.response.data)}`);
-            }
+            throw new BadRequestException(
+              `Could not associate token: ${associateResponse.data.message}`
+            );
           }
+        } else {
+          this.logger.error('[ERROR] Share failed and association not attempted or failed:', error);
+          throw error;
         }
-      } else {
-        this.logger.warn(`No private key found for Hedera account ${recipientHederaId}. Token association may fail if not previously done.`);
       }
-      
-      // Call the API to share ownership
-      const requestData = {
-        tokenId: market.fractionalNFTAddress,
-        recipientId: recipientHederaId,
-        percentageToShare: shareData.percentage,
-        marketAccountId: market.marketWalletPublicKey,
-        marketPrivateKey: market.marketWalletSecretKey,
-      };
-      
-      // Only include recipientPrivateKey if we have it
-      if (recipientPrivateKey) {
-        requestData['recipientPrivateKey'] = recipientPrivateKey;
-      }
-      
-      // Log request data (with sensitive information redacted)
-      this.logger.log(`Calling NFT API at ${this.nftApiUrl}/share with recipient: ${recipientHederaId}`);
-      this.logger.log(`Request data: ${JSON.stringify({
-        ...requestData, 
-        marketPrivateKey: '[REDACTED]', 
-        recipientPrivateKey: recipientPrivateKey ? '[REDACTED]' : undefined
-      })}`);
-      
-      const response: AxiosResponse<ShareResponse> = await firstValueFrom(
-        this.httpService.post<ShareResponse>(`${this.nftApiUrl}/share`, requestData)
-      );
-      
+  
       if (!response.data.success) {
         throw new Error(response.data.message || 'Share operation failed');
       }
-      
-      // Update the market's remaining fractions in database
+  
       const result = response.data.data;
       const remainingShares = result.sender.shares;
-      
+  
       await this.normalMarketModel.findByIdAndUpdate(marketId, {
         fractions: remainingShares
       });
-      
-      // Log recipient ownership for tracking
+  
       this.logger.log(`✅ Successfully shared ${shareData.percentage}% ownership with ${recipientHederaId}`);
       this.logger.log(`Recipient now has ${result.recipient.shares} shares (${result.recipient.percentage.toFixed(2)}%)`);
-      
+  
       return {
         success: true,
         transactionId: result.transactionId || 'API_TRANSACTION',
         recipientHederaId: recipientHederaId
       };
     } catch (error) {
-      this.logger.error('Failed to share fractional token:', error);
-      
-      // Handle token association errors specifically
+      this.logger.error('[ERROR] Failed to share fractional token:', error);
+  
       if (error.response?.data) {
-        this.logger.error(`API error details: ${JSON.stringify(error.response.data)}`);
-        
+        this.logger.error(`[ERROR] API error details: ${JSON.stringify(error.response.data)}`);
         if (error.response.data.message?.includes('TOKEN_NOT_ASSOCIATED_TO_ACCOUNT')) {
           throw new BadRequestException(
-            `Token association required: The recipient account ${error.response.data.message.match(/account\s+([0-9.]+)/)?.[1] || shareData.recipientAddress} must be associated with the token ${market.fractionalNFTAddress} first. ` +
-            `Please associate the token before transferring or provide an account with pre-associated token.`
+            `Token association required: The recipient account ${error.response.data.message.match(/account\s+([0-9.]+)/)?.[1] || shareData.recipientAddress
+            } must be associated with the token ${market.fractionalNFTAddress} first. Please associate the token before transferring or provide an account with pre-associated token.`
           );
         }
       }
-      
+  
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
+  
       throw new BadRequestException(`Failed to share fractional token: ${error.message}`);
     }
   }
   
-  // Method to check token ownership distribution
   async checkTokenOwnership(marketId: string): Promise<any[]> {
     try {
-      // Get the market to find its token
       const market = await this.normalMarketModel.findById(marketId);
       if (!market || !market.fractionalNFTAddress) {
         throw new NotFoundException("Market or fractional token not found");
       }
       
-      // Call the API to check ownership with proper typing
       const response: AxiosResponse<OwnershipResponse> = await firstValueFrom(
         this.httpService.get<OwnershipResponse>(
           `${this.nftApiUrl}/check?tokenId=${market.fractionalNFTAddress}&marketAccountId=${market.marketWalletPublicKey}`
@@ -541,10 +507,8 @@ export class MarketService {
         throw new Error(response.data.message || 'Check ownership operation failed');
       }
       
-      // Update the market's fraction count
       const ownershipDistribution = response.data.data.ownershipDistribution;
       
-      // Find the market account's ownership and update fractions
       const marketOwnership = ownershipDistribution.find(o => o.accountId === market.marketWalletPublicKey);
       if (marketOwnership) {
         await this.normalMarketModel.findByIdAndUpdate(marketId, {
@@ -559,21 +523,17 @@ export class MarketService {
     }
   }
 
-  // Add funds to market account
   async fundMarketAccount(marketId: string, userId: string, amountInHbar: number): Promise<any> {
-    // Find the market
     const market = await this.normalMarketModel.findById(marketId);
     if (!market) {
       throw new NotFoundException("Market not found");
     }
     
-    // Check ownership
     if (market.owner && market.owner.toString() !== userId) {
       throw new BadRequestException("You don't have permission to fund this market");
     }
     
     try {
-      // Transfer HBAR to the market account
       const transferTx = await new TransferTransaction()
         .addHbarTransfer(this.operatorId, new Hbar(-amountInHbar))
         .addHbarTransfer(market.marketWalletPublicKey, new Hbar(amountInHbar))
@@ -585,7 +545,6 @@ export class MarketService {
       
       this.logger.log(`✅ Successfully funded market account ${market.marketWalletPublicKey} with ${amountInHbar} HBAR`);
       
-      // Get the new balance
       const accountBalance = await new AccountBalanceQuery()
         .setAccountId(market.marketWalletPublicKey)
         .execute(this.client);
@@ -607,7 +566,6 @@ export class MarketService {
     }
   }
 
-  // Standard CRUD methods with ownership checks
   async findAll(): Promise<NormalMarket[]> {
     return this.normalMarketModel.find().exec();
   }
@@ -622,7 +580,6 @@ export class MarketService {
       throw new NotFoundException("Market not found");
     }
     
-    // Convert userId to string and compare with market.owner.toString()
     if (market.owner && market.owner.toString() !== userId) {
       throw new BadRequestException("You don't have permission to update this market");
     }
@@ -636,7 +593,6 @@ export class MarketService {
       throw new NotFoundException("Market not found");
     }
     
-    // Check if the requesting user is the owner
     if (existingMarket.owner && existingMarket.owner.toString() !== userId) {
       throw new BadRequestException("You don't have permission to delete this market");
     }
@@ -647,15 +603,11 @@ export class MarketService {
   async getMarketsByOwner(ownerId: string): Promise<NormalMarket[]> {
     this.logger.log(`Fetching markets for owner with ID: ${ownerId}`);
     
-    // Verify valid ObjectId to prevent DB errors
     if (!Types.ObjectId.isValid(ownerId)) {
       throw new BadRequestException('Invalid owner ID format');
     }
     
-    // Convert string ID to ObjectId for MongoDB query
     const ownerObjectId = new Types.ObjectId(ownerId);
-    
-    // Query the database for markets with the specified owner
     const markets = await this.normalMarketModel.find({ 
       owner: ownerObjectId 
     }).exec();
@@ -693,7 +645,6 @@ export class MarketService {
         throw new ForbiddenException('Owner does not have valid Hedera credentials');
       }
 
-      // Call the token transfer API
       try {
         const payload = {
           senderAccountId: market.marketWalletPublicKey,
@@ -704,7 +655,6 @@ export class MarketService {
         const response = await axios.post('https://hserv.onrender.com/api/token/transfer', payload);
 
 
-      // Return success response with transaction details
       return {
         success: true,
         message: `Successfully transferred ${amount} HC from market to owner`,
@@ -714,10 +664,8 @@ export class MarketService {
         transactionDetails: response.data,
       };
     } catch (error) {
-      // Log the error for debugging but return a cleaner message
       console.error('Error transferring tokens:', error);
       
-      // Return appropriate error response
       return {
         success: false,
         message: 'Failed to transfer tokens',
