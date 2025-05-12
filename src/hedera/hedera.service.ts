@@ -288,7 +288,7 @@ export class HederaService {
 async getFirstTokenAcquisitionTimes(tokenId: string) {
   const BASE = 'https://testnet.mirrornode.hedera.com';
   const balances = await axios.get(`${BASE}/api/v1/tokens/${tokenId}/balances`);
-  const result = [];
+  const accounts = balances.data.balances.map((b: any) => b.account);
 
   // Helper to decode Hedera timestamp to ISO string
   function decodeHederaTimestamp(ts: string): string {
@@ -297,9 +297,17 @@ async getFirstTokenAcquisitionTimes(tokenId: string) {
     return new Date(Number(seconds) * 1000).toISOString();
   }
 
-  for (const holder of balances.data.balances) {
+  // Find first acquisition and parent for each account
+  const infoList: {
+    account: string,
+    firstReceivedAt: string | null,
+    firstReceivedAtISO: string | null,
+    parent: string | null
+  }[] = [];
+
+  for (const account of accounts) {
     let found = false;
-    let nextLink = `${BASE}/api/v1/transactions?account.id=${holder.account}&order=asc&limit=100`;
+    let nextLink = `${BASE}/api/v1/transactions?account.id=${account}&order=asc&limit=100`;
     while (nextLink && !found) {
       const { data } = await axios.get(nextLink);
       for (const tx of data.transactions) {
@@ -307,13 +315,20 @@ async getFirstTokenAcquisitionTimes(tokenId: string) {
           for (const xfer of tx.token_transfers) {
             if (
               xfer.token_id === tokenId &&
-              xfer.account === holder.account &&
+              xfer.account === account &&
               Number(xfer.amount) > 0
             ) {
-              result.push({
-                account: holder.account,
+              // Find the sender
+              const parentXfer = tx.token_transfers.find(
+                (t: any) =>
+                  t.token_id === tokenId &&
+                  Number(t.amount) < 0
+              );
+              infoList.push({
+                account,
                 firstReceivedAt: tx.consensus_timestamp,
                 firstReceivedAtISO: decodeHederaTimestamp(tx.consensus_timestamp),
+                parent: parentXfer?.account ?? null
               });
               found = true;
               break;
@@ -325,25 +340,30 @@ async getFirstTokenAcquisitionTimes(tokenId: string) {
       nextLink = data.links?.next ? `${BASE}${data.links.next}` : null;
     }
     if (!found) {
-      result.push({ 
-        account: holder.account, 
-        firstReceivedAt: null, 
-        firstReceivedAtISO: null 
+      infoList.push({
+        account,
+        firstReceivedAt: null,
+        firstReceivedAtISO: null,
+        parent: null
       });
     }
   }
-  // Sort by firstReceivedAt, nulls last
-  result.sort((a, b) => {
-    if (!a.firstReceivedAt) return 1;
-    if (!b.firstReceivedAt) return -1;
-    return Number(a.firstReceivedAt) - Number(b.firstReceivedAt);
-  });
 
-  // Build the chain: each has a child except the last
-  let chain = null;
-  for (let i = result.length - 1; i >= 0; i--) {
-    chain = { ...result[i], child: chain };
+  // Build the parent->children tree
+  const nodeMap: Record<string, any> = {};
+  for (const info of infoList) {
+    nodeMap[info.account] = { ...info, children: [] };
   }
-  return chain;
+  let roots: any[] = [];
+  for (const info of infoList) {
+    if (info.parent && nodeMap[info.parent]) {
+      nodeMap[info.parent].children.push(nodeMap[info.account]);
+    } else {
+      roots.push(nodeMap[info.account]);
+    }
+  }
+
+  // If only one root, return it directly, else return array of trees
+  return roots.length === 1 ? roots[0] : roots;
 }
 }

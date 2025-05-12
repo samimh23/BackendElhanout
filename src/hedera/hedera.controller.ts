@@ -81,7 +81,7 @@ async checkAll(@Query('tokenId') tokenId: string) {
     if (!tokenId) {
       return { error: 'tokenId is required' };
     }
-    const n = Number(count) || 3;
+
     return this.hederaService.getFirstTokenAcquisitionTimes(tokenId);
   }
 
