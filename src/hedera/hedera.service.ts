@@ -284,4 +284,66 @@ export class HederaService {
       })),
     };
   }
+
+async getFirstTokenAcquisitionTimes(tokenId: string) {
+  const BASE = 'https://testnet.mirrornode.hedera.com';
+  const balances = await axios.get(`${BASE}/api/v1/tokens/${tokenId}/balances`);
+  const result = [];
+
+  // Helper to decode Hedera timestamp to ISO string
+  function decodeHederaTimestamp(ts: string): string {
+    if (!ts) return null;
+    const [seconds] = ts.split('.');
+    return new Date(Number(seconds) * 1000).toISOString();
+  }
+
+  for (const holder of balances.data.balances) {
+    let found = false;
+    let nextLink = `${BASE}/api/v1/transactions?account.id=${holder.account}&order=asc&limit=100`;
+    while (nextLink && !found) {
+      const { data } = await axios.get(nextLink);
+      for (const tx of data.transactions) {
+        if (tx.token_transfers) {
+          for (const xfer of tx.token_transfers) {
+            if (
+              xfer.token_id === tokenId &&
+              xfer.account === holder.account &&
+              Number(xfer.amount) > 0
+            ) {
+              result.push({
+                account: holder.account,
+                firstReceivedAt: tx.consensus_timestamp,
+                firstReceivedAtISO: decodeHederaTimestamp(tx.consensus_timestamp),
+              });
+              found = true;
+              break;
+            }
+          }
+        }
+        if (found) break;
+      }
+      nextLink = data.links?.next ? `${BASE}${data.links.next}` : null;
+    }
+    if (!found) {
+      result.push({ 
+        account: holder.account, 
+        firstReceivedAt: null, 
+        firstReceivedAtISO: null 
+      });
+    }
+  }
+  // Sort by firstReceivedAt, nulls last
+  result.sort((a, b) => {
+    if (!a.firstReceivedAt) return 1;
+    if (!b.firstReceivedAt) return -1;
+    return Number(a.firstReceivedAt) - Number(b.firstReceivedAt);
+  });
+
+  // Build the chain: each has a child except the last
+  let chain = null;
+  for (let i = result.length - 1; i >= 0; i--) {
+    chain = { ...result[i], child: chain };
+  }
+  return chain;
+}
 }

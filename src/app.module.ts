@@ -27,7 +27,6 @@ import { ReservationModule } from './reservation/reservation.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuctionModule } from './auction/auction.module';
 import { HederaModule } from './hedera/hedera.module';
-import { tr } from 'date-fns/locale';
 import { FarmCropToProductModule } from './TransformCropProduct/transform.module';
 
 @Module({
@@ -81,7 +80,7 @@ import { FarmCropToProductModule } from './TransformCropProduct/transform.module
     AnalyticsModule,
     AuctionModule,
     HederaModule,
-    FarmCropToProductModule
+    FarmCropToProductModule,
   
   ],
   controllers: [AppController],
