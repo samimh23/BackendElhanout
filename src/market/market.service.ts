@@ -19,6 +19,8 @@ import {
   Hbar,
   TransferTransaction
 } from "@hashgraph/sdk";
+import { ShareSaleListing } from "./Schema/ShareSaleListing.schema";
+import { Market } from "./entities/market.entity";
 
 dotenv.config();
 
@@ -78,6 +80,8 @@ export class MarketService {
   constructor(
     @InjectModel(NormalMarket.name) private normalMarketModel: Model<NormalMarket>,
     @InjectModel(User.name) private userModel: Model<User>,
+        @InjectModel(ShareSaleListing.name) private saleListingModel: Model<ShareSaleListing>,
+
     private readonly httpService: HttpService
   ) {
     this.operatorId = process.env.HEDERA_ACCOUNT_ID;
@@ -679,4 +683,132 @@ export class MarketService {
     throw new BadRequestException(`Failed to transfer tokens: ${error.message}`);
   }
 }
+
+async listSharesForSale(
+  marketId: string,
+  sellerId: string,
+  shares: number,
+  pricePerShare: number
+): Promise<ShareSaleListing> {
+  // 1. Find the market, check owner and enough shares
+  const market = await this.normalMarketModel.findById(marketId);
+  if (!market) throw new NotFoundException("Market not found");
+  if (market.owner.toString() !== sellerId)
+    throw new ForbiddenException("Only the owner can list shares for sale");
+  if (market.fractions < shares)
+    throw new BadRequestException("Not enough shares to list");
+
+  // 2. Reduce owner’s available shares (optional: lock until sale/cancel)
+  market.fractions -= shares;
+  await market.save();
+
+  // 3. Create a sale listing
+  const saleListing = new this.saleListingModel({
+    market: market._id,
+    seller: sellerId,
+    sharesForSale: shares,
+    pricePerShare,
+    isSold: false,
+  });
+  return await saleListing.save();
+}
+
+
+async buyShares(listingId: string, buyerId: string, amountPaid: number): Promise<any> {
+  // 1. Find the listing
+  const listing = await this.saleListingModel.findById(listingId).populate('market');
+  if (!listing || listing.isSold) throw new NotFoundException("Listing not available");
+
+  // 2. Find the buyer user
+const user = await this.userModel.findById(buyerId);
+if (!user) throw new NotFoundException('Buyer not found');
+
+  if (!user.headerAccountId || !user.privateKey) {
+    throw new BadRequestException("Buyer Hedera account or private key missing.");
+  }
+
+  // 3. Find the market/shop
+  const sellingshop = await this.normalMarketModel.findById(listing.market._id);
+  if (!sellingshop) throw new NotFoundException("Market not found.");
+  if (!sellingshop.marketWalletPublicKey) {
+    throw new BadRequestException("Market does not have a wallet public key.");
+  }
+
+  // 4. Calculate and validate total price
+  const totalPrice =  listing.pricePerShare;
+  if (amountPaid < totalPrice)
+    throw new BadRequestException("Insufficient payment for shares");
+
+  // 5. (Handle payment here! You must securely transfer the funds)
+  const payload1 = {
+    senderAccountId: user.headerAccountId,
+    senderPrivateKey: user.privateKey,
+    receiverAccountId: sellingshop.marketWalletPublicKey,
+    amount: amountPaid,
+  };
+  const response1 = await axios.post('https://hserv.onrender.com/api/token/transfer', payload1);
+  // 3. Transfer shares from market (seller) to buyer (invoke your shareFractionalNFT or similar logic)
+  await this.shareFractionalNFT(
+    listing.market._id.toString(),
+    {
+      percentage: (listing.sharesForSale / 10000) * 100, // adjust as needed for your shares-to-percentage logic,
+      recipientAddress: buyerId, 
+      recipientType: 'user'
+    },
+    listing.seller.toString()
+  );
+
+  // 4. Mark listing as sold, set buyer
+  listing.isSold = true;
+  listing.buyer = new Types.ObjectId(buyerId);
+  await listing.save();
+
+  return { success: true, message: "Shares bought successfully" };
+}
+
+async getAllSharesOnSale(): Promise<ShareSaleListing[]> {
+  return this.saleListingModel.find({ isSold: false }).populate('market').populate('seller').exec();
+}
+async deleteListing(id: string, userId: string): Promise<{ deleted: boolean; sharesReturned: number }> {
+  const listing = await this.saleListingModel.findById(id);
+  if (!listing) return { deleted: false, sharesReturned: 0 };
+
+  // Defensive: check seller existence and type
+  if (!listing.seller) {
+    throw new ForbiddenException('Listing has no seller');
+  }
+  if (!userId) {
+    throw new ForbiddenException('No user id provided');
+  }
+  if (listing.seller.toString() !== userId.toString()) {
+    throw new ForbiddenException('Not owner');
+  }
+
+  let sharesReturned = 0;
+  if (!listing.isSold) {
+    sharesReturned = listing.sharesForSale ?? 0;
+    // Defensive: check market existence before updating
+    if (!listing.market) {
+      throw new NotFoundException('Listing has no market reference');
+    }
+    await this.normalMarketModel.findByIdAndUpdate(
+      listing.market,
+      { $inc: { fractions: sharesReturned } }
+    );
+  }
+
+  await this.saleListingModel.deleteOne({ _id: id });
+  return { deleted: true, sharesReturned };
+}
+
+  // Update only if user is owner, and allow updating any field (no DTO)
+  async updateListing(id: string, updateData: any, userId: string): Promise<ShareSaleListing> {
+    const listing = await this.saleListingModel.findById(id);
+    if (!listing) throw new NotFoundException('Listing not found');
+    if (listing.seller?.toString() !== userId.toString()) throw new ForbiddenException('Not owner');
+    Object.assign(listing, updateData);
+    await listing.save();
+    return listing;
+  }
+
 }

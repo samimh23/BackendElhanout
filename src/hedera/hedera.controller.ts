@@ -73,4 +73,16 @@ export class HederaController {
 async checkAll(@Query('tokenId') tokenId: string) {
   return this.hederaService.getTokenOwnership(tokenId);
 }
+ @Get('first-token-holders')
+  async getFirstTokenHolders(
+    @Query('tokenId') tokenId: string,
+    @Query('count') count?: string
+  ) {
+    if (!tokenId) {
+      return { error: 'tokenId is required' };
+    }
+    const n = Number(count) || 3;
+    return this.hederaService.getFirstTokenAcquisitionTimes(tokenId);
+  }
+
 }

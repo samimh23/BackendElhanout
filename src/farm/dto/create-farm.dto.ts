@@ -17,7 +17,7 @@ export class CreateFarmMarketDto {
 
   @IsString()
   @IsOptional()
-  farmImage: string;
+  farmImage?: string;
 
   @IsString()
   @IsOptional()
