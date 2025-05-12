@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { MarketOrderCropDto } from './dto/market-order_crop.dto';
+import { MarketOrderDto } from './dto/market-order.dtl';
 
 @Controller('order')
 export class OrderController {
@@ -10,6 +11,11 @@ export class OrderController {
   @Post()
   async createOrder(@Body() createOrderDto: CreateOrderDto) {
     return this.orderService.createAnOrder(createOrderDto);
+  }
+
+  @Post('createOrder')
+  async createOrderFromFarm(@Body() createOrder: MarketOrderDto) {
+    return this.orderService.createFarmOrder(createOrder);
   }
 
   @Get()

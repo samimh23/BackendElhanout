@@ -166,7 +166,7 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       }
 
       // Get crop info
-      const crop = await this.cropModel.findById(auction.cropId).exec();
+      const crop = await this.cropModel.findById(auction.product).exec();
       if (!crop) {
         client.emit('orderError', { error: 'Crop not found.' });
         return;
@@ -177,7 +177,7 @@ export class AuctionGateway implements OnGatewayConnection, OnGatewayDisconnect 
         normalMarket: data.marketId,
         products: [
           {
-            productId: auction.cropId.toString(),
+            productId: auction.product.toString(),
             stock: crop.quantity,
           },
         ],

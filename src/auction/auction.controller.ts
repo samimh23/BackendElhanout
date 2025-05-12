@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Patch, Delete } from '@nestjs/common';
 import { AuctionService } from './auction.service';
 import { Auction } from './schema/auction.schema';
 import { CreateAuctionDto } from './dto/create-auction.dto';
@@ -45,5 +45,10 @@ export class AuctionController {
   @Get('farmer/:id')
   getByfarmerId(@Param('id') farmerId: string): Promise<Auction[]> {
     return this.auctionService.getAuctionsByfarmerId(farmerId);
+  }
+
+  @Delete('delete/:id')
+  deleteAuction(@Param('id') auctionId: string) {
+     this.auctionService.deleteAuction(auctionId);
   }
 }

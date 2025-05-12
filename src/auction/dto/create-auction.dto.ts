@@ -1,14 +1,16 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsDate, IsEnum, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsDate, IsEnum, IsOptional, IsString } from 'class-validator';
 
 export class CreateAuctionDto {
   @IsNotEmpty()
-  cropId: string;
+  @IsString()
+  product: string;
 
   @IsNotEmpty()
   description: string;
 
   @IsNotEmpty()
+  @IsString()
   farmerId: string;
 
   @IsNumber()

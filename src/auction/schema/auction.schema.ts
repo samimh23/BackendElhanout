@@ -3,14 +3,14 @@ import { Document, Types } from 'mongoose';
 
 @Schema()
 export class Auction extends Document {
-  @Prop({ type: Types.ObjectId, ref: 'Crop', required: true })
-  cropId: Types.ObjectId;
+  @Prop({  type: String, required: true })
+  product: string;
 
   @Prop({ required: true })
   description: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  farmerId: Types.ObjectId;
+  @Prop({  type: String, required: true })
+  farmerId: string;
 
   @Prop([
     {

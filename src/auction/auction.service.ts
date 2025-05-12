@@ -30,7 +30,7 @@ export class AuctionService {
 
   async createAuction(dto: CreateAuctionDto): Promise<Auction> {
     const auction = new this.auctionModel({
-      cropId: new Types.ObjectId(dto.cropId),
+      product: new Types.ObjectId(dto.product),
       description: dto.description,
       farmerId: new Types.ObjectId(dto.farmerId),
       startingPrice: dto.startingPrice,
@@ -148,13 +148,13 @@ export class AuctionService {
         // Notify winner to select a market
         this.logger.log(`Emitting marketSelectionRequired to ${highestBid.bidderId}:`, {
           auctionId: auc._id.toString(),
-          cropId: auc.cropId.toString(),
+          product: auc.product.toString(),
           markets: markets.map(m => m.toString()),
           totalPrice: highestBid.bidAmount,
         });
         this.gateway.server.to(highestBid.bidderId.toString()).emit('marketSelectionRequired', {
           auctionId: auc._id.toString(),
-          cropId: auc.cropId.toString(),
+          product: auc.product.toString(),
           markets: markets.map(m => m.toString()), // send list of market IDs
           totalPrice: highestBid.bidAmount,
         });
@@ -164,13 +164,13 @@ export class AuctionService {
         this.gateway.server.to(auc._id.toString()).emit('auctionEnded', { auctionId: auc._id });
         continue;
       }
-     const crop = await this.cropModel.findById(auc.cropId).exec();
+     const crop = await this.cropModel.findById(auc.product).exec();
       // Only one market: proceed to create order
       const normalMarket = Array.isArray(markets) ? markets[0] : markets;
       const createOrderDto = {
         normalMarket: normalMarket.toString(),
         products: [{
-          productId: auc.cropId.toString(),
+          productId: auc.product.toString(),
           stock: crop.quantity,
         }],
         user: highestBid.bidderId.toString(),
@@ -197,5 +197,8 @@ export class AuctionService {
   }
   async getAuctionsByfarmerId(farmerId: string): Promise<Auction[]> {
     return this.auctionModel.find({ 'farmerId': farmerId }).exec();
+  }
+  async deleteAuction(id: string): Promise<void> {
+        await this.auctionModel.findByIdAndDelete(id).exec();
   }
 }

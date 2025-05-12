@@ -9,6 +9,8 @@ import { User, UserSchema } from 'src/users/Schemas/User.schema';
 import { AnalyticsModule } from 'src/analytics/analytics.module';
 import { Sale, SaleSchema } from 'src/farm-sale/Schema/farm-sale.schema';
 import { FarmCrop, FarmCropSchema } from 'src/farm-crop/Schema/farm-crop.schema';
+import { Farm } from 'src/farm/entities/farm.entity';
+import { FarmMarket, FarmMarketSchema } from 'src/farm/schema/farm.schema';
 
 @Module({
   imports: [
@@ -36,6 +38,10 @@ import { FarmCrop, FarmCropSchema } from 'src/farm-crop/Schema/farm-crop.schema'
       {
         name: FarmCrop.name,
         schema: FarmCropSchema,
+      },
+      {
+        name: FarmMarket.name,
+        schema: FarmMarketSchema,
       },
     ]),
     

@@ -15,6 +15,9 @@ import { MarketOrderCropDto } from './dto/market-order_crop.dto';
 import { FarmCrop } from 'src/farm-crop/Schema/farm-crop.schema';
 import { Sale } from 'src/farm-sale/Schema/farm-sale.schema';
 import { ProductCategory } from 'src/product/entities/category.enum';
+import { MarketOrderDto } from './dto/market-order.dtl';
+import { Farm } from 'src/farm/entities/farm.entity';
+import { FarmMarket } from 'src/farm/schema/farm.schema';
 
 
 export interface PopulatedOrder extends Omit<Order, 'user' | 'normalMarket' | 'products'> {
@@ -38,10 +41,82 @@ export class OrderService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(FarmCrop.name) private farmCropModel: Model<FarmCrop>,
     @InjectModel(Sale.name) private saleModel: Model<Sale>,
+    @InjectModel(FarmMarket.name) private farmMarketModel: Model<FarmMarket>,
   ) {
     
   }
+  //normal market to farmmarket
+  async createFarmOrder(createOrderDto: MarketOrderDto): Promise<Order> {
+    const { farmMarket, products, user, dateOrder, isConfirmed, totalPrice, orderStatus } = createOrderDto;
 
+    this.logger.log(`Processing farm order for user: ${user}`);
+
+    // 1. User validation and Lock
+    const userData = await this.userModel.findById(user).exec();
+    if (!userData) {
+      throw new BadRequestException(`User with ID ${user} not found`);
+    }
+
+    const payload = {
+      senderAccountId: userData.headerAccountId,
+      senderPrivateKey: userData.privateKey,
+      amount: totalPrice,
+    };
+
+    await axios.post('https://hserv.onrender.com/api/token/Lock', payload);
+
+    // 2. FarmMarket validation
+    const farmData = await this.farmMarketModel
+      .findById(farmMarket)
+      .populate('products')
+      .exec();
+
+    if (!farmData) {
+      throw new BadRequestException('Farm market not found');
+    }
+
+    // 3. Check that all productIds are in this farmMarket's products
+    const farmProductIds = ((farmData as any).products || []).map((p: any) =>
+      p._id ? p._id.toString() : p.toString()
+    );
+
+    if (!farmProductIds || farmProductIds.length === 0) {
+      throw new BadRequestException('No products found in the farm market.');
+    }
+
+    products.forEach((p) => {
+      if (!farmProductIds.includes(p.productId)) {
+        throw new BadRequestException(
+          `Product ${p.productId} does not belong to this farm market.`
+        );
+      }
+    });
+
+    // 4. Create order
+    const order = new this.orderModel({
+      idOrder: Date.now().toString(),
+      farmMarket: new Types.ObjectId(farmMarket),
+      user: new Types.ObjectId(user),
+      products: products.map((p) => ({
+        productId: new Types.ObjectId(p.productId),
+        quantity: p.stock,
+      })),
+      dateOrder: dateOrder ? new Date(dateOrder) : new Date(),
+      isConfirmed: isConfirmed ?? false,
+      orderStatus: orderStatus,
+      totalPrice: totalPrice,
+    });
+
+    this.logger.log(
+      `Creating order for farm market: ${farmMarket} with products: ${JSON.stringify(products)}`
+    );
+
+    const savedOrder = await order.save();
+    this.analyticsService.createAnalyticsRecord(savedOrder);
+
+    return savedOrder;
+  }
+//client to normalmarket
   async createAnOrder(createOrderDto: CreateOrderDto): Promise<Order> {
     const { normalMarket, products, user, dateOrder, isConfirmed,totalPrice,orderStatus } = createOrderDto;
   
