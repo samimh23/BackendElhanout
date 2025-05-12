@@ -81,7 +81,8 @@ import { FarmCropToProductModule } from './TransformCropProduct/transform.module
     AnalyticsModule,
     AuctionModule,
     HederaModule,
-    FarmCropToProductModule
+    FarmCropToProductModule,
+    
   
   ],
   controllers: [AppController],
