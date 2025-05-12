@@ -19,6 +19,7 @@ import { multerConfig } from 'src/config/multer.config';
 
 // Import sale listing schema and DTO if needed
 import { ShareSaleListing } from './schema/ShareSaleListing.schema';
+import { isValidObjectId } from 'mongoose';
 
 @Controller('normal')
 export class MarketController {
@@ -110,13 +111,15 @@ async buyShares(
   // --- All routes with variable ":id" go after specific ones ---
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<NormalMarket> {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('Invalid market id');
+    }
     const market = await this.normalMarketService.findOne(id);
     if (!market) {
       throw new NotFoundException(`Market with id ${id} not found`);
     }
     return market;
   }
-
   @UseGuards(AuthenticationGuard, RolesGuard)
   @Roles(Role.MERCHANT)
   @Patch(':id')
