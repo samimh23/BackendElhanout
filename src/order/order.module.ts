@@ -43,5 +43,6 @@ import { FarmCrop, FarmCropSchema } from 'src/farm-crop/Schema/farm-crop.schema'
   ],
   controllers: [OrderController],
   providers: [OrderService],
+  exports: [OrderService],
 })
 export class OrderModule {}
