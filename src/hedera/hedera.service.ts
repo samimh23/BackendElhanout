@@ -284,20 +284,27 @@ export class HederaService {
       })),
     };
   }
+async getfarmerbyaccount(account: string) {
+  // Adjust field names if needed!
+  return this.userModel.findOne({ hederaAccountId: account, role: 'FARMER' }).lean();
+}
+
+async getmarketbyaccount(account: string) {
+  // Adjust field names if needed!
+  return this.NormalMarket.findOne({ marketWalletPublicKey: account }).lean();
+}
 
 async getFirstTokenAcquisitionTimes(tokenId: string) {
   const BASE = 'https://testnet.mirrornode.hedera.com';
   const balances = await axios.get(`${BASE}/api/v1/tokens/${tokenId}/balances`);
   const accounts = balances.data.balances.map((b: any) => b.account);
 
-  // Helper to decode Hedera timestamp to ISO string
   function decodeHederaTimestamp(ts: string): string {
     if (!ts) return null;
     const [seconds] = ts.split('.');
     return new Date(Number(seconds) * 1000).toISOString();
   }
 
-  // Find first acquisition and parent for each account
   const infoList: {
     account: string,
     firstReceivedAt: string | null,
@@ -318,7 +325,6 @@ async getFirstTokenAcquisitionTimes(tokenId: string) {
               xfer.account === account &&
               Number(xfer.amount) > 0
             ) {
-              // Find the sender
               const parentXfer = tx.token_transfers.find(
                 (t: any) =>
                   t.token_id === tokenId &&
@@ -363,7 +369,26 @@ async getFirstTokenAcquisitionTimes(tokenId: string) {
     }
   }
 
-  // If only one root, return it directly, else return array of trees
-  return roots.length === 1 ? roots[0] : roots;
+  // Enrich the tree with names:
+  const getDisplayName = async (account: string): Promise<string> => {
+    const farmer = await this.getfarmerbyaccount(account);
+    if (farmer && farmer.name) return farmer.name;
+    const market = await this.getmarketbyaccount(account);
+    if (market && market.marketName) return market.marketName;
+    return account;
+  };
+
+  async function enrichTree(node: any): Promise<any> {
+    if (Array.isArray(node)) return Promise.all(node.map(enrichTree));
+    const name = await getDisplayName(node.account);
+    return {
+      ...node,
+      name, // <-- Adds the name field
+      children: node.children ? await Promise.all(node.children.map(enrichTree)) : []
+    };
+  }
+
+  const resultTree = roots.length === 1 ? roots[0] : roots;
+  return await enrichTree(resultTree);
 }
 }
