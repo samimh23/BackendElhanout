@@ -11,6 +11,9 @@ import {
   IsEnum,
 } from 'class-validator';
 
+
+import { OrderStatus } from '../entities/order.schema';
+
 export class ProductOrderDto {
   @IsMongoId()
   productId: string;
@@ -26,7 +29,7 @@ export class MarketOrderDto {
 
   @IsMongoId()
   @IsNotEmpty()
-  user: string;
+  normalmarket: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -42,8 +45,8 @@ export class MarketOrderDto {
   isConfirmed?: boolean;
 
   @IsOptional()
-  @IsEnum(['isProcessing', 'Delivering', 'isReceived'])
-  orderStatus?: string;
+  @IsEnum(OrderStatus)
+  orderStatus?: OrderStatus;
 
   @IsNumber()
   totalPrice: number;

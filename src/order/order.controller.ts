@@ -3,6 +3,7 @@ import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { MarketOrderCropDto } from './dto/market-order_crop.dto';
 import { MarketOrderDto } from './dto/market-order.dtl';
+import { Order } from './entities/order.schema';
 
 @Controller('order')
 export class OrderController {
@@ -27,7 +28,11 @@ export class OrderController {
   async confirmOrder(@Param('id') id: string) {
     return this.orderService.confirmOrder(id);
   }
-
+    @Patch(':id/confirm')
+  async confirmMarketOrder(@Param('id') id: string): Promise<Order> {
+    const order = await this.orderService.confirmMarketOrder(id);
+    return order;
+  }
   @Patch('cancel/:id')
   async cancelOrder(@Param('id') id: string) {
     return this.orderService.cancelOrder(id);

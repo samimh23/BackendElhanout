@@ -18,6 +18,7 @@ import { ProductCategory } from 'src/product/entities/category.enum';
 import { MarketOrderDto } from './dto/market-order.dtl';
 import { Farm } from 'src/farm/entities/farm.entity';
 import { FarmMarket } from 'src/farm/schema/farm.schema';
+import { Role } from 'src/users/Schemas/Role.enum';
 
 
 export interface PopulatedOrder extends Omit<Order, 'user' | 'normalMarket' | 'products'> {
@@ -45,77 +46,102 @@ export class OrderService {
   ) {
     
   }
-  //normal market to farmmarket
-  async createFarmOrder(createOrderDto: MarketOrderDto): Promise<Order> {
-    const { farmMarket, products, user, dateOrder, isConfirmed, totalPrice, orderStatus } = createOrderDto;
+async createFarmOrder(createOrderDto: MarketOrderDto): Promise<Order> {
+  const {
+    farmMarket,
+    normalmarket,
+    products,
+    dateOrder,
+    isConfirmed,
+    totalPrice,
+    orderStatus
+  } = createOrderDto;
 
-    this.logger.log(`Processing farm order for user: ${user}`);
-
-    // 1. User validation and Lock
-    const userData = await this.userModel.findById(user).exec();
-    if (!userData) {
-      throw new BadRequestException(`User with ID ${user} not found`);
-    }
-
-    const payload = {
-      senderAccountId: userData.headerAccountId,
-      senderPrivateKey: userData.privateKey,
-      amount: totalPrice,
-    };
-
-    await axios.post('https://hserv.onrender.com/api/token/Lock', payload);
-
-    // 2. FarmMarket validation
-    const farmData = await this.farmMarketModel
-      .findById(farmMarket)
-      .populate('products')
-      .exec();
-
-    if (!farmData) {
-      throw new BadRequestException('Farm market not found');
-    }
-
-    // 3. Check that all productIds are in this farmMarket's products
-    const farmProductIds = ((farmData as any).products || []).map((p: any) =>
-      p._id ? p._id.toString() : p.toString()
-    );
-
-    if (!farmProductIds || farmProductIds.length === 0) {
-      throw new BadRequestException('No products found in the farm market.');
-    }
-
-    products.forEach((p) => {
-      if (!farmProductIds.includes(p.productId)) {
-        throw new BadRequestException(
-          `Product ${p.productId} does not belong to this farm market.`
-        );
-      }
-    });
-
-    // 4. Create order
-    const order = new this.orderModel({
-      idOrder: Date.now().toString(),
-      farmMarket: new Types.ObjectId(farmMarket),
-      user: new Types.ObjectId(user),
-      products: products.map((p) => ({
-        productId: new Types.ObjectId(p.productId),
-        quantity: p.stock,
-      })),
-      dateOrder: dateOrder ? new Date(dateOrder) : new Date(),
-      isConfirmed: isConfirmed ?? false,
-      orderStatus: orderStatus,
-      totalPrice: totalPrice,
-    });
-
-    this.logger.log(
-      `Creating order for farm market: ${farmMarket} with products: ${JSON.stringify(products)}`
-    );
-
-    const savedOrder = await order.save();
-    this.analyticsService.createAnalyticsRecord(savedOrder);
-
-    return savedOrder;
+  // 1. Market (buyer) validation
+  const market = await this.shopModel.findById(normalmarket).exec();
+  if (!market) throw new BadRequestException(`Market with ID ${normalmarket} not found`);
+  if (!market.marketWalletPublicKey || !market.marketWalletSecretKey) {
+    throw new BadRequestException('Market wallet credentials missing for payment lock');
   }
+
+  // 2. FarmMarket (seller) validation
+  const farmDoc = await this.farmMarketModel.findById(farmMarket).exec();
+  if (!farmDoc) throw new BadRequestException(`FarmMarket with ID ${farmMarket} not found`);
+
+  // 3. Validate farmMarket owns the product and has enough stock
+  for (const p of products) {
+    const ownsProduct = farmDoc.products.some(
+      (id) => id.toString() === p.productId.toString()
+    );
+    if (!ownsProduct) {
+      throw new BadRequestException(`FarmMarket does not own product ${p.productId}`);
+    }
+    const farmProduct = await this.productModel.findById(p.productId).exec();
+    if (!farmProduct) throw new BadRequestException(`Product ${p.productId} not found`);
+    if ((farmProduct.stock ?? 0) < (p.stock ?? 1)) {
+      throw new BadRequestException(`FarmMarket does not have enough stock for product ${p.productId}`);
+    }
+  }
+
+  // 4. Lock the payment from NormalMarket (Hedera lock)
+  const lockPayload = {
+    senderAccountId: market.marketWalletPublicKey,
+    senderPrivateKey: market.marketWalletSecretKey,
+    amount: totalPrice,
+  };
+  await axios.post('https://hserv.onrender.com/api/token/Lock', lockPayload);
+
+  // 5. Move stock: decrease from farmMarket, increase for normalMarket
+  for (const p of products) {
+    await this.productModel.updateOne(
+      { _id: p.productId },
+      { $inc: { stock: -(p.stock ?? 1) } }
+    );
+
+    const marketProduct = await this.productModel.findOne({
+      _id: p.productId,
+      owner: normalmarket
+    }).exec();
+
+    if (marketProduct) {
+      await this.productModel.updateOne(
+        { _id: p.productId, owner: normalmarket },
+        { $inc: { stock: (p.stock ?? 1) } }
+      );
+    } else {
+      const orig = await this.productModel.findById(p.productId).lean();
+      if (orig) {
+        const newProd = { ...orig, _id: undefined, owner: normalmarket, stock: (p.stock ?? 1) };
+        await this.productModel.create(newProd);
+      }
+    }
+  }
+
+  // 6. Create order record
+  const order = new this.orderModel({
+    idOrder: Date.now().toString(),
+    farmMarket: new Types.ObjectId(farmMarket),
+    normalMarket: new Types.ObjectId(normalmarket),
+    user: new Types.ObjectId(normalmarket), // <--- Here!
+    products: products.map((p) => ({
+      productId: new Types.ObjectId(p.productId),
+      quantity: p.stock ?? 1,
+    })),
+    dateOrder: dateOrder ? new Date(dateOrder) : new Date(),
+    isConfirmed: isConfirmed ?? false,
+    orderStatus: orderStatus,
+    totalPrice: totalPrice,
+  });
+
+  this.logger.log(
+    `Order created: normal market ${normalmarket} buys from farm market ${farmMarket}`
+  );
+
+  const savedOrder = await order.save();
+  await this.analyticsService.createAnalyticsRecord(savedOrder);
+
+  return savedOrder;
+}
 //client to normalmarket
   async createAnOrder(createOrderDto: CreateOrderDto): Promise<Order> {
     const { normalMarket, products, user, dateOrder, isConfirmed,totalPrice,orderStatus } = createOrderDto;
@@ -549,5 +575,132 @@ console.log('Lock response:', response.data);
     return newProduct.save();
   }
 
-  
+   async getTokenBalance(accountId: string, tokenId: string): Promise<number> {
+    const account = accountId?.replace(/,\s*$/, '').trim();
+    const token = tokenId?.replace(/,\s*$/, '').trim();
+    const url = `https://mainnet-public.mirrornode.hedera.com/api/v1/accounts/${account}/tokens`;
+    const resp = await axios.get(url);
+    const tokenEntry = resp.data.tokens.find((t) => t.token_id === token);
+    return tokenEntry ? Number(tokenEntry.balance) : 0;
+  }
+
+  // Confirm market order, transfer tokens, and create new product for market
+  async confirmMarketOrder(id: string): Promise<Order> {
+    const order = await this.orderModel.findById(id).exec();
+    if (!order) throw new BadRequestException('Order not found');
+    if (order.isConfirmed) throw new BadRequestException('Order is already confirmed');
+
+    // Get the market/shop (buyer)
+    const market = await this.shopModel.findById(order.normalMarket._id).exec();
+    if (!market) throw new BadRequestException('Market not found');
+
+    // Get farm market (seller)
+    const farmMarket = await this.farmMarketModel.findById(order.farmMarket).exec();
+    if (!farmMarket) throw new BadRequestException('FarmMarket not found');
+
+    // Get farm owner
+    const farmOwner = await this.userModel.findById(farmMarket.owner).exec();
+    if (!farmOwner || !farmOwner.headerAccountId || !farmOwner.privateKey) {
+      throw new BadRequestException('Farm owner or their Hedera account not found');
+    }
+
+    // Unlock tokens for market
+    const unlockPayload = {
+      receiverAccountId: market.marketWalletPublicKey.replace(/,\s*$/, '').trim(),
+      amount: order.totalPrice,
+    };
+    await axios.post('https://hserv.onrender.com/api/token/Unlock', unlockPayload);
+
+    // Transfer funds to farm owner
+    const transferPayload = {
+      senderAccountId: market.marketWalletPublicKey.replace(/,\s*$/, '').trim(),
+      senderPrivateKey: market.marketWalletSecretKey,
+      receiverAccountId: farmOwner.headerAccountId,
+      amount: order.totalPrice,
+    };
+    await axios.post('https://hserv.onrender.com/api/token/transfer', transferPayload);
+
+    // For each bought product: sell tokens, create new product, add to market's products
+    for (let i = 0; i < order.products.length; ++i) {
+      const orderProductRef = order.products[i];
+
+      // Support { productId, quantity, ... } or just ObjectId
+      const productId = orderProductRef.productId ? orderProductRef.productId : orderProductRef;
+      const boughtProduct = await this.productModel.findById(productId).exec();
+      if (!boughtProduct) throw new BadRequestException(`Product not found: ${JSON.stringify(orderProductRef)}`);
+
+      // Validate prices and token id
+      if (!boughtProduct.originalPrice || boughtProduct.originalPrice <= 0) {
+        throw new BadRequestException(`Product ${boughtProduct._id} originalPrice invalid`);
+      }
+      if (!order.totalPrice || order.totalPrice <= 0) {
+        throw new BadRequestException('Order totalPrice invalid');
+      }
+      if (!boughtProduct.tokenid) {
+        throw new BadRequestException(`Product ${boughtProduct._id} missing tokenid`);
+      }
+
+      // Calculate amount (optional: could use quantity if you want)
+      const amountKg = order.totalPrice / boughtProduct.originalPrice;
+      if (!amountKg || amountKg <= 0 || !isFinite(amountKg)) {
+        throw new BadRequestException(`Calculated amountKg is invalid: ${amountKg}`);
+      }
+
+      // Sell token transaction
+      const tokenPayload = {
+        tokenId: boughtProduct.tokenid,
+        amountKg: amountKg,
+        sellerAccountId: farmOwner.headerAccountId,
+        sellerPrivateKey: farmOwner.privateKey,
+        buyerAccountId: market.marketWalletPublicKey.replace(/,\s*$/, '').trim(),
+        buyerPrivateKey: market.marketWalletSecretKey,
+      };
+      await axios.post('https://hedera-token.onrender.com/api/tokens/sell', tokenPayload);
+
+      // Fetch shop's token balance from Hedera
+      const shopTokenStock = await this.getTokenBalance(
+        market.marketWalletPublicKey,
+        boughtProduct.tokenid,
+      );
+
+      // Create a new product for the market/shop with the same tokenid and up-to-date stock
+      const newProduct = await this.productModel.create({
+        name: boughtProduct.name,
+        description: boughtProduct.description + 'baught from '+ farmMarket.farmName,
+        price: boughtProduct.price,
+        originalPrice: boughtProduct.originalPrice,
+        category: boughtProduct.category,
+        stock: shopTokenStock,
+        image: boughtProduct.image,
+        ratings: 0,
+        ratingsAverage: 0,
+        ratingsQuantity: 0,
+        isActive: true,
+        isDiscounted: false,
+        DiscountValue: 0,
+        shop: market._id,
+        tokenid: boughtProduct.tokenid,
+      });
+
+      // Add the new product's ID to the market's products array
+      market.products.push(new Types.ObjectId(newProduct._id.toString()));
+    }
+
+    await market.save();
+
+    // (Optional) Decrease stock for each originally bought product (farm's product)
+    // for (const orderProductRef of order.products) {
+    //   const productId = orderProductRef.productId ? orderProductRef.productId : orderProductRef;
+    //   const originalProduct = await this.productModel.findById(productId).exec();
+    //   if (!originalProduct) continue;
+    //   if (originalProduct.stock > 0) {
+    //     originalProduct.stock -= 1;
+    //     await originalProduct.save();
+    //   }
+    // }
+
+    order.isConfirmed = true;
+    OrderStatus.ISRECIVED;
+    return order.save();
+  }
 }
