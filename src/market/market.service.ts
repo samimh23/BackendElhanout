@@ -810,5 +810,5 @@ async deleteListing(id: string, userId: string): Promise<{ deleted: boolean; sha
     await listing.save();
     return listing;
   }
-
+  
 }

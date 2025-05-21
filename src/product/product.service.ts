@@ -231,4 +231,5 @@ async create(createProductDto: CreateProductDto): Promise<Product> {
   async getDiscountedProduct(): Promise<Product[]> {
     return this.productModel.find({ isDiscounted: true }).exec();
   }
+  
 }

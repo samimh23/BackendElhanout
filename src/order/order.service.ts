@@ -575,17 +575,40 @@ console.log('Lock response:', response.data);
     return newProduct.save();
   }
 
-   async getTokenBalance(accountId: string, tokenId: string): Promise<number> {
+ async getTokenBalance(accountId: string, tokenId: string): Promise<number> {
+  try {
+    // Original method - keep for reference
     const account = accountId?.replace(/,\s*$/, '').trim();
     const token = tokenId?.replace(/,\s*$/, '').trim();
-    const url = `https://mainnet-public.mirrornode.hedera.com/api/v1/accounts/${account}/tokens`;
+    
+    // NEW: Call your owned tokens endpoint instead of the mirror node
+    console.log(`[TokenBalance] Querying owned tokens for account: ${account}`);
+    const url = `https://hedera-token.onrender.com/api/tokens/owned?accountId=${account}`;
     const resp = await axios.get(url);
-    const tokenEntry = resp.data.tokens.find((t) => t.token_id === token);
-    return tokenEntry ? Number(tokenEntry.balance) : 0;
+    console.log(`[TokenBalance] Owned tokens response:`, resp.data);
+    
+    // Check if the token exists in the response
+    const tokenData = resp.data.tokens[token];
+    console.log(`[TokenBalance] Token data for ${token}:`, tokenData);
+    
+    // If token exists, return its currentStockKg value
+    if (tokenData && tokenData.currentStockKg !== undefined) {
+      console.log(`[TokenBalance] Found token, returning stock: ${tokenData.currentStockKg}`);
+      return tokenData.currentStockKg;
+    }
+    
+    // If token not found, log it and return 0
+    console.log(`[TokenBalance] Token ${token} not found in owned tokens for ${account}`);
+    return 0;
+  } catch (error) {
+    console.error(`[TokenBalance] Error checking token balance:`, error.message);
+    return 0; // Return 0 on error
   }
+}
 
-  // Confirm market order, transfer tokens, and create new product for market
+  // Confirm market order, transfer tokens, and update/create product in market
   async confirmMarketOrder(id: string): Promise<Order> {
+    console.log(`[Order Confirm] Starting confirmation for order: ${id}`);
     const order = await this.orderModel.findById(id).exec();
     if (!order) throw new BadRequestException('Order not found');
     if (order.isConfirmed) throw new BadRequestException('Order is already confirmed');
@@ -609,6 +632,7 @@ console.log('Lock response:', response.data);
       receiverAccountId: market.marketWalletPublicKey.replace(/,\s*$/, '').trim(),
       amount: order.totalPrice,
     };
+    console.log(`[Order Confirm] Unlocking tokens for market: ${market.marketWalletPublicKey} (${order.totalPrice})`);
     await axios.post('https://hserv.onrender.com/api/token/Unlock', unlockPayload);
 
     // Transfer funds to farm owner
@@ -618,13 +642,11 @@ console.log('Lock response:', response.data);
       receiverAccountId: farmOwner.headerAccountId,
       amount: order.totalPrice,
     };
+    console.log(`[Order Confirm] Transferring funds to farm owner: ${farmOwner.headerAccountId} (${order.totalPrice})`);
     await axios.post('https://hserv.onrender.com/api/token/transfer', transferPayload);
 
-    // For each bought product: sell tokens, create new product, add to market's products
     for (let i = 0; i < order.products.length; ++i) {
       const orderProductRef = order.products[i];
-
-      // Support { productId, quantity, ... } or just ObjectId
       const productId = orderProductRef.productId ? orderProductRef.productId : orderProductRef;
       const boughtProduct = await this.productModel.findById(productId).exec();
       if (!boughtProduct) throw new BadRequestException(`Product not found: ${JSON.stringify(orderProductRef)}`);
@@ -640,7 +662,7 @@ console.log('Lock response:', response.data);
         throw new BadRequestException(`Product ${boughtProduct._id} missing tokenid`);
       }
 
-      // Calculate amount (optional: could use quantity if you want)
+      // Calculate amount
       const amountKg = order.totalPrice / boughtProduct.originalPrice;
       if (!amountKg || amountKg <= 0 || !isFinite(amountKg)) {
         throw new BadRequestException(`Calculated amountKg is invalid: ${amountKg}`);
@@ -655,52 +677,59 @@ console.log('Lock response:', response.data);
         buyerAccountId: market.marketWalletPublicKey.replace(/,\s*$/, '').trim(),
         buyerPrivateKey: market.marketWalletSecretKey,
       };
+      console.log(`[Order Confirm] Selling token ${boughtProduct.tokenid} (${amountKg}kg) from ${farmOwner.headerAccountId} to ${market.marketWalletPublicKey}`);
       await axios.post('https://hedera-token.onrender.com/api/tokens/sell', tokenPayload);
 
-      // Fetch shop's token balance from Hedera
+      // Wait 30 seconds for the network to update
+      console.log(`[Order Confirm] Waiting 30 seconds for Hedera network update...`);
+      await new Promise(resolve => setTimeout(resolve, 30000));
       const shopTokenStock = await this.getTokenBalance(
         market.marketWalletPublicKey,
         boughtProduct.tokenid,
       );
+      console.log(`[Order Confirm] Stock on chain for token ${boughtProduct.tokenid} in market ${market._id}: ${shopTokenStock}`);
 
-      // Create a new product for the market/shop with the same tokenid and up-to-date stock
-      const newProduct = await this.productModel.create({
-        name: boughtProduct.name,
-        description: boughtProduct.description + 'baught from '+ farmMarket.farmName,
-        price: boughtProduct.price,
-        originalPrice: boughtProduct.originalPrice,
-        category: boughtProduct.category,
-        stock: shopTokenStock,
-        image: boughtProduct.image,
-        ratings: 0,
-        ratingsAverage: 0,
-        ratingsQuantity: 0,
-        isActive: true,
-        isDiscounted: false,
-        DiscountValue: 0,
+      // Check if the normal market already has a product with the bought token id
+      let marketProduct = await this.productModel.findOne({
         shop: market._id,
         tokenid: boughtProduct.tokenid,
-      });
+      }).exec();
 
-      // Add the new product's ID to the market's products array
-      market.products.push(new Types.ObjectId(newProduct._id.toString()));
+      if (marketProduct) {
+        // If exists, update stock
+        console.log(`[Order Confirm] Found existing product in market with tokenId ${boughtProduct.tokenid}. Updating stock from ${marketProduct.stock} to ${shopTokenStock}`);
+        marketProduct.stock = shopTokenStock;
+        await marketProduct.save();
+      } else {
+        // If not, create a new product for the market/shop
+        console.log(`[Order Confirm] No product found in market with tokenId ${boughtProduct.tokenid}. Creating new product for market.`);
+        const newProduct = await this.productModel.create({
+          name: boughtProduct.name,
+          description: boughtProduct.description + ' baught from ' + farmMarket.farmName,
+          price: boughtProduct.price,
+          originalPrice: boughtProduct.originalPrice,
+          category: boughtProduct.category,
+          stock: shopTokenStock,
+          image: boughtProduct.image,
+          ratings: 0,
+          ratingsAverage: 0,
+          ratingsQuantity: 0,
+          isActive: true,
+          isDiscounted: false,
+          DiscountValue: 0,
+          shop: market._id,
+          tokenid: boughtProduct.tokenid,
+        });
+        market.products.push(new Types.ObjectId(newProduct._id.toString()));
+        console.log(`[Order Confirm] Added new product with tokenId ${boughtProduct.tokenid} to market.`);
+      }
     }
 
     await market.save();
 
-    // (Optional) Decrease stock for each originally bought product (farm's product)
-    // for (const orderProductRef of order.products) {
-    //   const productId = orderProductRef.productId ? orderProductRef.productId : orderProductRef;
-    //   const originalProduct = await this.productModel.findById(productId).exec();
-    //   if (!originalProduct) continue;
-    //   if (originalProduct.stock > 0) {
-    //     originalProduct.stock -= 1;
-    //     await originalProduct.save();
-    //   }
-    // }
-
     order.isConfirmed = true;
-    OrderStatus.ISRECIVED;
+    order.orderStatus = OrderStatus.ISRECIVED;
+    console.log(`[Order Confirm] Order ${id} confirmed successfully.`);
     return order.save();
   }
 }
