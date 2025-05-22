@@ -24,6 +24,13 @@ export class OrderController {
     return this.orderService.findAll();
   }
 
+   @Get('between-normal-and-farm/:normalMarketId')
+  async getOrdersBetweenNormalAndFarmMarket(
+    @Param('normalMarketId') normalMarketId: string,
+  ): Promise<Order[]> {
+    return this.orderService.getOrdersBetweenNormalAndFarmMarket(normalMarketId);
+  }
+
   @Patch('confirm/:id')
   async confirmOrder(@Param('id') id: string) {
     return this.orderService.confirmOrder(id);

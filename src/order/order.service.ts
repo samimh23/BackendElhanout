@@ -682,7 +682,7 @@ console.log('Lock response:', response.data);
 
       // Wait 30 seconds for the network to update
       console.log(`[Order Confirm] Waiting 30 seconds for Hedera network update...`);
-      await new Promise(resolve => setTimeout(resolve, 30000));
+      await new Promise(resolve => setTimeout(resolve, 15000));
       const shopTokenStock = await this.getTokenBalance(
         market.marketWalletPublicKey,
         boughtProduct.tokenid,
@@ -732,4 +732,11 @@ console.log('Lock response:', response.data);
     console.log(`[Order Confirm] Order ${id} confirmed successfully.`);
     return order.save();
   }
+async getOrdersBetweenNormalAndFarmMarket(normalMarketId: string): Promise<Order[]> {
+  return this.orderModel.find({
+    normalMarket: new Types.ObjectId(normalMarketId),
+    farmMarket: { $exists: true, $ne: null }
+  })
+  .exec();
+}
 }
