@@ -1,0 +1,53 @@
+# .gitignore entries for IBMOLS implementation
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# Test outputs
+test_results/
+benchmark_results/
+performance_logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+.env
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Documentation builds
+docs/_build/
+docs/build/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Local configuration
+local_config.py
+secrets.py

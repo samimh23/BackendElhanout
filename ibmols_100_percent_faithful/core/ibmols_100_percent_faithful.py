@@ -241,7 +241,7 @@ class IBMOLS:
         # Initialize domination structures
         for i in range(self.population.size.value):
             sol_i = self.population.solutions[i]
-            sol_i.dominated_count = c_int(0)
+            sol_i.dominated_count = 0
             sol_i.dominates = None  # Would need proper C-style list
         
         # First front
@@ -259,10 +259,10 @@ class IBMOLS:
                         pass  # Would add j to sol_i.dominates list
                     elif self.dominates(sol_j, sol_i):
                         # sol_j dominates sol_i
-                        sol_i.dominated_count = c_int(sol_i.dominated_count.value + 1)
+                        sol_i.dominated_count += 1
             
-            if sol_i.dominated_count.value == 0:
-                sol_i.rank = c_int(0)
+            if sol_i.dominated_count == 0:
+                sol_i.rank = 0
                 first_front.append(i)
         
         fronts.append(first_front)
@@ -296,7 +296,7 @@ class IBMOLS:
         # Initialize distances
         for i in front:
             sol = self.population.solutions[i]
-            sol.crowding_distance = c_double(0.0)
+            sol.crowding_distance = 0.0
         
         # Calculate distance for each objective
         for obj in range(self.num_objectives.value):
@@ -307,8 +307,8 @@ class IBMOLS:
             # Set boundary solutions to infinite distance
             sol_min = self.population.solutions[front_sorted[0]]
             sol_max = self.population.solutions[front_sorted[-1]]
-            sol_min.crowding_distance = c_double(float('inf'))
-            sol_max.crowding_distance = c_double(float('inf'))
+            sol_min.crowding_distance = float('inf')
+            sol_max.crowding_distance = float('inf')
             
             # Calculate range
             obj_min = sol_min.objectives[obj]
@@ -323,29 +323,34 @@ class IBMOLS:
                     sol_next = self.population.solutions[front_sorted[i+1]]
                     
                     distance = (sol_next.objectives[obj] - sol_prev.objectives[obj]) / obj_range
-                    sol_curr.crowding_distance = c_double(
-                        sol_curr.crowding_distance.value + distance
-                    )
+                    sol_curr.crowding_distance += distance
     
     def selection(self) -> int:
         """Tournament selection with exact C behavior."""
-        tournament_size = c_int(2)
+        tournament_size = 2
         
-        best_index = c_int(rand() % self.population.size.value)
-        best_sol = self.population.solutions[best_index.value]
+        best_index = rand() % self.population.size.value
+        best_sol = self.population.solutions[best_index]
         
-        for _ in range(tournament_size.value - 1):
-            candidate_index = c_int(rand() % self.population.size.value)
-            candidate_sol = self.population.solutions[candidate_index.value]
+        for _ in range(tournament_size - 1):
+            candidate_index = rand() % self.population.size.value
+            candidate_sol = self.population.solutions[candidate_index]
+            
+            # Get rank values (handle both c_int and int)
+            best_rank = best_sol.rank.value if hasattr(best_sol.rank, 'value') else best_sol.rank
+            candidate_rank = candidate_sol.rank.value if hasattr(candidate_sol.rank, 'value') else candidate_sol.rank
+            
+            # Get crowding distance values
+            best_cd = best_sol.crowding_distance.value if hasattr(best_sol.crowding_distance, 'value') else best_sol.crowding_distance
+            candidate_cd = candidate_sol.crowding_distance.value if hasattr(candidate_sol.crowding_distance, 'value') else candidate_sol.crowding_distance
             
             # Compare based on rank first, then crowding distance
-            if (candidate_sol.rank.value < best_sol.rank.value or
-                (candidate_sol.rank.value == best_sol.rank.value and
-                 candidate_sol.crowding_distance.value > best_sol.crowding_distance.value)):
+            if (candidate_rank < best_rank or
+                (candidate_rank == best_rank and candidate_cd > best_cd)):
                 best_index = candidate_index
                 best_sol = candidate_sol
         
-        return best_index.value
+        return best_index
     
     def crossover(self, parent1: Solution, parent2: Solution) -> Tuple[Solution, Solution]:
         """Simulated Binary Crossover (SBX) with exact C behavior."""
@@ -403,19 +408,27 @@ class IBMOLS:
                 if rand_val <= 0.5:
                     xy = 1.0 - delta_l / delta_u if delta_u > 0 else 1.0
                     val = 2.0 * rand_val + (1.0 - 2.0 * rand_val) * (xy ** (eta_m.value + 1.0))
-                    delta_q = val ** mut_pow - 1.0
+                    if val > 0:
+                        delta_q = val ** mut_pow - 1.0
+                    else:
+                        delta_q = 0.0
                 else:
                     xy = 1.0 - delta_u / delta_l if delta_l > 0 else 1.0
                     val = 2.0 * (1.0 - rand_val) + 2.0 * (rand_val - 0.5) * (xy ** (eta_m.value + 1.0))
-                    delta_q = 1.0 - val ** mut_pow
+                    if val > 0:
+                        delta_q = 1.0 - val ** mut_pow
+                    else:
+                        delta_q = 0.0
                 
-                solution.variables[i] = c_double(x + delta_q * delta_l)
+                new_val = x + delta_q * delta_l
                 
                 # Bound checking
-                if solution.variables[i] < 0.0:
-                    solution.variables[i] = c_double(0.0)
-                elif solution.variables[i] > 1.0:
-                    solution.variables[i] = c_double(1.0)
+                if new_val < 0.0:
+                    new_val = 0.0
+                elif new_val > 1.0:
+                    new_val = 1.0
+                
+                solution.variables[i] = c_double(new_val)
     
     def run(self) -> List[Tuple[List[float], List[float]]]:
         """
@@ -459,8 +472,8 @@ class IBMOLS:
                 parent1_idx = self.selection()
                 parent2_idx = self.selection()
                 
-                parent1 = self.population.solutions[parent1_idx].contents
-                parent2 = self.population.solutions[parent2_idx].contents
+                parent1 = self.population.solutions[parent1_idx]
+                parent2 = self.population.solutions[parent2_idx]
                 
                 # Generate offspring
                 child1, child2 = self.crossover(parent1, parent2)
